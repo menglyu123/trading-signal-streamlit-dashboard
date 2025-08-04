@@ -136,9 +136,10 @@ class auto_trade():
     def add_pred_cols(self, df):
         try:
             bdf, test_X = prepare_data(df, self.winlen, self.future, training=False)
-            print("bdf: ", bdf.shape)
+            print("bdf: ", bdf.shape, bdf.head(), test_X.shape)
             _ = self.load_model()
             bdf['pred'] = self.model.predict(test_X)
+            print("pred", bdf.pred)
             bdf['speed'] = np.exp(bdf.pred)
             bdf['speed'] = bdf.speed.pct_change()
             bdf.speed.fillna(0, inplace=True)
