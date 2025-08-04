@@ -1,5 +1,6 @@
 import datetime as dt
 import yfinance as yf
+import requests
 
 with open('./data/code_pool_hk.txt','r') as fp:
     CODE_LIST = [line.rstrip() for line in fp]
@@ -14,7 +15,6 @@ def download_yf_data(code_list, start_date=None, end_date=None):
     Returns:
         data: DataFrame with stock data from yfinance
     """
-    from curl_cffi import requests
     session = requests.Session(impersonate="chrome")
     # Handle date parameters
     if isinstance(start_date, str):
