@@ -48,6 +48,7 @@ def get_last_n_trading_days_predictions(n, trader, market_choice, from_date=None
         }, inplace=True)
         df['date'] = pd.to_datetime(df['date']).dt.date
         pred_df = trader.add_pred_cols(df)
+        print(pred_df.head(5))
         if len(pred_df) < 3:
             print("error ticker", ticker)
             continue
