@@ -4,8 +4,6 @@ from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
 import warnings
 warnings.filterwarnings("ignore")
-import dill
-dill.settings['recurse'] = True
 
 def filter(s, len):
     _, trend = sm.tsa.filters.hpfilter(s, len)
