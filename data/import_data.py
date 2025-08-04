@@ -97,7 +97,7 @@ def download_yf_data(code_list, start_date=None, end_date=None, chunk_size=5):
             
             # Download data for this chunk with retry logic
             data = download_with_retry(chunk, start_date, end_date)
-            
+            print(data.shape, data)
             if data is not None and not data.empty:
                 all_data.append(data)
                 successful_chunks += 1

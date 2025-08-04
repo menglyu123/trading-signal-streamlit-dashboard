@@ -291,6 +291,7 @@ else:
         
         with st.spinner(f"Fetching data for selected stocks..."):
             data = download_yf_data(selected_tickers, start_date=start_date, end_date=today)
+            print("downloaded data:",data.shape)
             if data is not None:
                 all_stock_data = {}
                 for ticker in selected_tickers:
