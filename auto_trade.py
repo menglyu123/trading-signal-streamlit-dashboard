@@ -303,18 +303,6 @@ if __name__ =='__main__':
     if args.backtest:
         auto_trade_today = auto_trade('lenet')
         auto_trade_today.backtest(days=500, record=True) #code_list=['0285']
-
-    if args.realtime_hk:
-        auto_trade_today = auto_trade('lenet','hk')
-        pred= auto_trade_today.single_day_predict(str(dt.date.today()), save=True) 
-    
-    if args.realtime_us:
-        auto_trade_today = auto_trade('lenet','us')
-        pred= auto_trade_today.single_day_predict(str(dt.date.today()), save=True) 
-    
-    if args.realtime_crypto:
-        auto_trade_today = auto_trade('lenet','crypto')
-        pred= auto_trade_today.single_day_predict(str(dt.date.today()), save=True) 
     
         
       
