@@ -26,6 +26,7 @@ def get_last_n_trading_days_predictions(n, trader, market_choice, from_date=None
     # Download data once for all dates with enough history
     start_date = current_date - dt.timedelta(days=trader.winlen+60+90+n+16)
     data = download_yf_data(trader.code_list, start_date=start_date, end_date=current_date)
+    print("downloaded data:", data.shape)
     
     if data is None:
         return [], []
@@ -291,7 +292,6 @@ else:
         
         with st.spinner(f"Fetching data for selected stocks..."):
             data = download_yf_data(selected_tickers, start_date=start_date, end_date=today)
-            print("downloaded data:",data.shape)
             if data is not None:
                 all_stock_data = {}
                 for ticker in selected_tickers:
