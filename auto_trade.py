@@ -1,15 +1,10 @@
-from util import cal_trade_performance, cal_drawdown, cal_trade_performance, plot_bdf
+from util import cal_trade_performance, cal_drawdown, cal_trade_performance
 from data.prepare_data import prepare_data
 from model.mylenet import lenet_regression
 from model.myencoder import encoder_regression
 import numpy as np, pandas as pd
-import pandas_ta as pta
 import argparse
-import datetime as dt
 import statsmodels.api as sm
-from futu import *
-import time
-import yfinance as yf
 
 
 class auto_trade():
@@ -136,70 +131,6 @@ class auto_trade():
         bdf.reset_index(inplace=True, drop=True)
         result_df = pd.concat([bdf, eval_df], axis=1)
         return result_df, metric
-
-
-
-
-    def backtest(self, days, code_list= None, folder= './backtest', plot= True, record = False):
-        if code_list == None:
-            code_list = self.code_list
-        profit_list = []
-        price_change_list = []
-        drawdown_list = []
-        adv_list = []
-        percent_profitable = []
-        profit_factor = []
-        avg_trade_profit = []
-        trade_count = []
-        available_code = []
-        today= dt.date.today()
-
-        for code in code_list:
-            quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)   
-            if code =="800000":
-                continue
-            else:
-                hk_code = "HK.0" + code
-            ret, df, _ = quote_ctx.request_history_kline(hk_code, str(today-dt.timedelta(days=self.winlen+60+days)), str(today),ktype='K_DAY')
-            if ret !=RET_OK:
-                print('error: ', df)
-            else: 
-                df = df[['time_key','open','high','low','close','volume']]
-                df.rename(columns={'time_key':'date'},inplace=True)
-                df['date'] = pd.to_datetime(df.date).dt.date       
-            quote_ctx.close()
-            time.sleep(0.5)
-
-            bdf, metric = self.backtest_single(df)
-            if record:    
-                bdf.to_csv(f'{folder}/record_{code}_{days}.csv', index= False)
-            if plot:
-                plot_bdf(code, bdf, f'{folder}/backtest_{code}_{days}')
-            try:
-                profit_list.append(bdf.iloc[-1]['profit'])
-                price_change_list.append(bdf.iloc[-1]['price_change'])
-                adv_list.append(bdf.iloc[-1]['advantage'])
-                drawdown_list.append(max(bdf.drawdown))
-                percent_profitable.append(metric['percent_profitable'])
-                profit_factor.append(metric['profit_factor'])
-                avg_trade_profit.append(metric['avg_trade_profit'])
-                trade_count.append(metric['trade_count'])
-                available_code.append(code)
-            except:
-                continue
-
-        summary_df = pd.DataFrame({'code':available_code, 'profit':profit_list, 'price_change':price_change_list, 'advantage':adv_list, 'drawdown':drawdown_list,
-                      'percent_profitable': percent_profitable,
-                      'profit_factor': profit_factor,
-                      'avg_trade_profit': avg_trade_profit,
-                      'trade_count': trade_count
-                      })
-        
-        summary_df.to_csv(f"{folder}/backtest_summary_{days}.csv", index=False)
-        # calculate sharpe ratio
-        print('sharpe ratio: ', np.mean(profit_list)/np.std(profit_list))
-        return summary_df
-    
 
         
     def add_pred_cols(self, df):

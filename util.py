@@ -5,8 +5,6 @@ import yfinance as yf
 from sklearn.cluster import KMeans
 import pandas as pd
 import matplotlib.pyplot as plt
-from futu import *
-import statsmodels.api as sm
 from dataclasses import dataclass
 
 from datetime import datetime, timedelta
@@ -155,52 +153,6 @@ def get_binance_daily_data(symbol, since: datetime, until: datetime) -> list[dic
 with open('./data/code_pool_hk.txt','r') as fp:
     CODE_LIST = [line.rstrip() for line in fp]
 
-
-def place_order(code, price, qty, trd_side):
-    trd_ctx = OpenHKTradeContext(host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
-    if trd_side == 'buy':
-        ret, data = trd_ctx.place_order(price=price, qty=qty, code="HK.0"+ code, trd_side=TrdSide.BUY, trd_env=TrdEnv.SIMULATE)
-    if trd_side == 'sell':
-        ret, data = trd_ctx.place_order(price=price, qty=qty, code="HK.0"+ code, trd_side=TrdSide.SELL, trd_env=TrdEnv.SIMULATE)
-    if ret == RET_OK:
-        order_id = data['order_id'][0]
-    else:
-        print('place_order error: ', data)
-    trd_ctx.close()
-    return order_id
-
-
-def get_order_status(order_id):
-    trd_ctx = OpenHKTradeContext(host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
-    ret, data = trd_ctx.order_list_query(order_id= order_id, trd_env=TrdEnv.SIMULATE, refresh_cache=True)
-    if ret == RET_OK:
-        print('order status: ', data['order_status'][0])
-    else:
-        print('order_status_query error: ', data)
-    trd_ctx.close()
-
-
-# def get_deal_order_list():  
-#    """ can not support simulate env
-#     trd_ctx = OpenSecTradeContext(filter_trdmarket=TrdMarket.HK, host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
-#     ret, data = trd_ctx.history_deal_list_query(trd_env=TrdEnv.SIMULATE)
-#     if ret == RET_OK:
-#         if data.shape[0] > 0:  
-#             print('deal_orders: ', data)  
-#     else:
-#         print('history_deal_list_query error: ', data)
-#     trd_ctx.close()
-
-
-def get_balance_list():
-    trd_ctx = OpenHKTradeContext(host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
-    ret, data = trd_ctx.position_list_query(trd_env=TrdEnv.SIMULATE, refresh_cache=True)
-    if ret == RET_OK:
-        if data.shape[0] > 0:  
-            print(data[['code', 'stock_name', 'qty', 'cost_price', 'pl_ratio']])  
-    else:
-        print('position_list_query error: ', data)
-    trd_ctx.close() 
 
 
 

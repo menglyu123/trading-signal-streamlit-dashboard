@@ -1,6 +1,6 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TensorFlow warnings
-
+from auto_trade import auto_trade
 import streamlit as st
 # Must be the first Streamlit command
 st.set_page_config(layout="wide", page_title="HK Stock Market Predictions")
@@ -10,14 +10,6 @@ import matplotlib.pyplot as plt
 import io
 import numpy as np
 from data.import_data import download_yf_data
-
-# Add error handling for imports
-try:
-    from auto_trade import auto_trade
-    AUTO_TRADE_AVAILABLE = True
-except Exception as e:
-    st.error(f"Error importing auto_trade: {e}")
-    AUTO_TRADE_AVAILABLE = False
 
 
 def get_last_n_trading_days_predictions(n, trader, market_choice, from_date=None):
@@ -162,19 +154,11 @@ def plot_prediction_histogram(predictions_list, dates_list):
 # Initialize Signal_Model
 @st.cache_resource
 def get_trader_hk():
-    try:
-        return auto_trade('lenet', 'hk')
-    except Exception as e:
-        st.error(f"Error initializing HK trader: {e}")
-        return None
+    return auto_trade('lenet', 'hk')
 
 @st.cache_resource
 def get_trader_us():
-    try:
-        return auto_trade('lenet', 'us')
-    except Exception as e:
-        st.error(f"Error initializing US trader: {e}")
-        return None
+    return auto_trade('lenet', 'us')
 
 # Market selection
 market_choice = st.selectbox(
@@ -185,16 +169,13 @@ market_choice = st.selectbox(
 )
 
 # Get the appropriate trader based on market choice
-try:
-    if market_choice == 'HK':
-        trader = get_trader_hk()
-        if trader is not None:
-            trader.code_list = [code if code.endswith('.HK') else f"{code}.HK" for code in trader.code_list]
-    else:  # US market
-        trader = get_trader_us()
-except Exception as e:
-    st.error(f"Error setting up trader: {e}")
-    trader = None
+if market_choice == 'HK':
+    trader = get_trader_hk()
+    if trader is not None:
+        trader.code_list = [code if code.endswith('.HK') else f"{code}.HK" for code in trader.code_list]
+else:  # US market
+    trader = get_trader_us()
+
 
 # Check if trader is available
 if trader is None:
