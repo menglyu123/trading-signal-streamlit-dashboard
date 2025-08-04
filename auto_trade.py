@@ -7,7 +7,6 @@ import pandas_ta as pta
 import argparse
 import datetime as dt
 import statsmodels.api as sm
-from data.import_data import DB_ops
 from futu import *
 import time
 import yfinance as yf
@@ -29,10 +28,6 @@ class auto_trade():
         self.winlen = 120
         self.future = 1
         self.fea_num = 16
-        self.host = 'localhost'
-        self.user = 'root'
-        self.password = 'mlu123456'
-        self.database = 'HK_stocks_daily'
          
         if model == 'lenet':
             self.model_folder = f'./model/regression/lenet'  
@@ -48,45 +43,6 @@ class auto_trade():
         self.model_path = self.model_folder+ '/epoch_sel.h5'
         self.model.load(self.model_path)
         return self.model
-
-
-    def fetch_train_data(self):
-        db_ops = DB_ops(host= self.host, user= self.user, password = self.password)
-        for code in self.code_list:
-            train_df = db_ops.fetch_batch_price_from_db(code, interval='1d',end='2022-12-31')
-            test_df = db_ops.fetch_batch_price_from_db(code, interval='1d',end='2024-01-01', start='2023-01-01')
-            train_df.to_csv( f'./data/HK_stocks_data/daily/train/{code}.csv', index=False)
-          #  test_df.to_csv( f'./data/HK_stocks_data/daily/test/{code}.csv', index=False)
-
-        
-    def train(self, batch_size=32, lr=2e-4, epoch=20):
-        big_train_X, big_val_X = [],[]
-        big_train_y, big_val_y = [],[]
-
-        for code in self.code_list:
-            print(f'code: {code}')
-            df = pd.read_csv(f'./data/HK_stocks_data/daily/train/{code}.csv')
-            df.dropna(inplace=True)
-            try:
-                train_X, train_y, val_X, val_y = prepare_data(df, self.winlen, self.future, training=True)
-                big_train_X.append(train_X)
-                big_val_X.append(val_X)
-                big_train_y.append(train_y)
-                big_val_y.append(val_y)
-            except Exception as e:
-                 print(e)
-                 continue
-        big_train_X = np.concatenate(big_train_X, axis=0)
-        big_train_y = np.concatenate(big_train_y, axis=0)
-        big_val_X = np.concatenate(big_val_X, axis=0)
-        big_val_y = np.concatenate(big_val_y, axis=0)
-        print("train shape: ", big_train_X.shape)
-        print('val shape: ', big_val_X.shape)
-
-        self.model.model.summary()
-        # train model
-        self.model.train(big_train_X, big_train_y, big_val_X, big_val_y, batch_size, lr, epoch, self.model_folder)
-        return
 
 
 
