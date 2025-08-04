@@ -8,46 +8,19 @@ import pandas as pd
 with open('./data/code_pool_hk.txt','r') as fp:
     CODE_LIST = [line.rstrip() for line in fp]
 
-def create_yf_session():
-    """
-    Create a session with custom headers to avoid rate limiting
-    """
-    session = requests.Session()
-    
-    # Rotate user agents to avoid detection
-    user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    ]
-    
-    session.headers.update({
-        'User-Agent': random.choice(user_agents),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-    })
-    
-    return session
-
 def download_with_retry(tickers, start_date, end_date, max_retries=3):
     """
     Download data with retry logic and exponential backoff
     """
     for attempt in range(max_retries):
         try:
-            # Create a new session for each attempt
-            session = create_yf_session()
-            
+            # Let Yahoo Finance handle session management
             data = yf.download(
                 tickers=tickers,
                 start=start_date,
                 end=end_date + dt.timedelta(days=1),
                 group_by='ticker',
-                progress=False,
-                session=session
+                progress=False
             )
             return data
         except Exception as e:
