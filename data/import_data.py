@@ -15,7 +15,7 @@ def download_yf_data(code_list, start_date=None, end_date=None):
     Returns:
         data: DataFrame with stock data from yfinance
     """
-    session = requests.Session(impersonate="chrome")
+
     # Handle date parameters
     if isinstance(start_date, str):
         start_date = dt.datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -31,8 +31,7 @@ def download_yf_data(code_list, start_date=None, end_date=None):
             start=start_date,
             end=end_date + dt.timedelta(days=1),
             group_by='ticker',
-            progress=False,
-            session=session
+            progress=False
         )
         return data
     except Exception as e:
