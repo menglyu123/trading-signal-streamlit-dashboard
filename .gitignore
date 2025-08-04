@@ -106,8 +106,5 @@ dmypy.json
 .streamlit/secrets.toml
 
 # Model files and data
-*.pkl
-*.h5
-*.model
 results/
 data/cache/ 
