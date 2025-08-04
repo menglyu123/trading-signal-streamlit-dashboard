@@ -67,6 +67,7 @@ def download_yf_data(code_list, start_date=None, end_date=None, chunk_size=5):
             
             if data is not None and not data.empty:
                 all_data.append(data)
+                print(i, chunk, data)
                 print(f"✓ Successfully downloaded chunk {i+1}")
             else:
                 print(f"⚠ Warning: Chunk {i+1} returned empty data")
