@@ -134,23 +134,20 @@ class auto_trade():
 
         
     def add_pred_cols(self, df):
-     #   try:
-        bdf, test_X = prepare_data(df, self.winlen, self.future, training=False)
-        print("bdf: ", bdf.shape, bdf.head(), test_X.shape)
-        _ = self.load_model()
-        print("model prediction: ", self.model.predict(test_X))
-        bdf['pred'] = self.model.predict(test_X)
-        print("pred", bdf.pred)
-        bdf['speed'] = np.exp(bdf.pred)
-        bdf['speed'] = bdf.speed.pct_change()
-        bdf.speed.fillna(0, inplace=True)
-        bdf['last5_freq'] = bdf['speed'].rolling(5).apply(lambda x: sum(x>0)/len(x))
-        bdf['last10_freq'] = bdf['speed'].rolling(10).apply(lambda x: sum(x>0)/len(x))
-        bdf['last15_freq'] = bdf['speed'].rolling(15).apply(lambda x: sum(x>0)/len(x))
-        bdf['btm_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1)
-        bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
-        # except:
-        #     bdf = pd.DataFrame()
+        try:
+            bdf, test_X = prepare_data(df, self.winlen, self.future, training=False)
+            _ = self.load_model()
+            bdf['pred'] = self.model.predict(test_X)
+            bdf['speed'] = np.exp(bdf.pred)
+            bdf['speed'] = bdf.speed.pct_change()
+            bdf.speed.fillna(0, inplace=True)
+            bdf['last5_freq'] = bdf['speed'].rolling(5).apply(lambda x: sum(x>0)/len(x))
+            bdf['last10_freq'] = bdf['speed'].rolling(10).apply(lambda x: sum(x>0)/len(x))
+            bdf['last15_freq'] = bdf['speed'].rolling(15).apply(lambda x: sum(x>0)/len(x))
+            bdf['btm_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1)
+            bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
+        except:
+            bdf = pd.DataFrame()
         return bdf
 
     def signal_pool(self, code_list, pred_df_list, date, save=False):
