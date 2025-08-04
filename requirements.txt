@@ -7,3 +7,4 @@ statsmodels>=0.14.0
 yfinance>=0.2.31
 curl-cffi>=0.5.0
 matplotlib>=3.5.0 
+tensorflow
