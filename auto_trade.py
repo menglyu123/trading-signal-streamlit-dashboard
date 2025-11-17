@@ -1,62 +1,50 @@
 from util import cal_trade_performance, cal_drawdown, cal_trade_performance
-from data.prepare_data import prepare_data
-from model.mylenet import lenet_regression
-from model.myencoder import encoder_regression
+from model.trend_pred_model import TrendPredModel
 import numpy as np, pandas as pd
 import argparse
 import statsmodels.api as sm
+import pandas_ta as pta
+from sklearn.preprocessing import StandardScaler
+
+def cal_rmse(s: np.ndarray, d=10, period=10):
+    scaler = StandardScaler()
+    x, y = np.arange(0, len(s)), scaler.fit_transform(s.reshape(-1,1))
+    coefficients = np.polyfit(x, y, d)
+    poly_fit = np.polyval(coefficients, x)
+    rs = np.sqrt(np.mean((y[-period:] - poly_fit[-period:]) ** 2))
+    return rs
+
 
 
 class auto_trade():
-    def __init__(self, model, market='hk'):
+    def __init__(self, market='HK'):
         self.market = market
-        if self.market == 'hk':
+        if self.market == 'HK':
             with open('./data/code_pool_hk.txt','r') as fp:
                 self.code_list = [line.rstrip() for line in fp]
-        if self.market == 'us':
+        if self.market == 'US':
             with open('./data/code_pool_us.txt','r') as fp:
                 self.code_list = [line.rstrip() for line in fp]
-        if self.market == 'crypto':
+        if self.market == 'CRYPTO':
             with open('./data/code_pool_crypto.txt','r') as fp:
                 self.code_list = [line.rstrip() for line in fp]
-        
         self.winlen = 120
-        self.future = 1
-        self.fea_num = 16
          
-        if model == 'lenet':
-            self.model_folder = f'./model/regression/lenet'  
-            # build model
-            self.model = lenet_regression(shape= (self.winlen, self.fea_num))
-        if model == 'encoder':
-            self.model_folder = f'./model/regression/encoder'  
-            # build model
-            self.model = encoder_regression(shape= (self.winlen, self.fea_num))
-
-
-    def load_model(self):
-        self.model_path = self.model_folder+ '/epoch_sel.h5'
-        self.model.load(self.model_path)
-        return self.model
-
-
-
     def backtest_single(self, df, init_balance=10000, fee=0.001, pct = 1):
-        bdf, test_X = prepare_data(df, self.winlen, self.future, training=False)
-        if test_X.shape[0] == 0:
-            return
-        
+        cdf = df.copy()
+        cdf['EMA_5'] = pta.ema(cdf.close, 5)
+        cdf['EMA_10'] = pta.ema(cdf.close, 10)
+        cdf['EMA_20'] = pta.ema(cdf.close, 20)
+        cdf['EMA_30'] = pta.ema(cdf.close, 30)
+        cdf['EMA_60'] = pta.ema(cdf.close, 60)
+        cdf.set_index('date', inplace=True)
         # model prediction
-        _ = self.load_model()
-        pred_val = self.model.predict(test_X)
-        bdf['predict'] = pred_val
+        model = TrendPredModel(self.winlen)
+        bdf = model.predict(df)
+        bdf = pd.concat([cdf, bdf], join='inner', axis=1)
         
         close = bdf.close.to_numpy()
-        pred = bdf.predict.to_numpy()
-        
-        # y = np.array(bdf.EMA_10)
-        # x = np.array(bdf.EMA_20)
-        # bdf['curvature'] = calculate_curvature(x, y) 
+        pred = bdf.prediction.to_numpy()
     
         price_change = [p/close[0] -1 for p in close]
         period_len = bdf.shape[0]
@@ -75,7 +63,7 @@ class auto_trade():
 
 
         for i in range(period_len):  
-            signal = bdf.iloc[i]['predict']>0.5 #(sum(bdf.iloc[i-3:i+1]['predict']>0)>=2)
+            signal = bdf.iloc[i]['prediction']>0.5 #(sum(bdf.iloc[i-3:i+1]['predict']>0)>=2)
             down_deep = (bdf.iloc[i]['EMA_60']/bdf.iloc[i]['close']>1.1)  #the down deeper, the risk lower 
             up_trend= True
             if i >120:
@@ -128,22 +116,53 @@ class auto_trade():
         metric = cal_trade_performance(profit, buy, sell)  
         eval_df = pd.DataFrame({"profit": profit, "advantage":advantage, "price_change": price_change, "buy": buy, "sell":sell, 
                      "drawdown": drawdown})
-        bdf.reset_index(inplace=True, drop=True)
-        result_df = pd.concat([bdf, eval_df], axis=1)
-        return result_df, metric
+        result_df = pd.concat([bdf, eval_df], join='inner',axis=1)
+        bdf.reset_index(inplace=True)
+        return bdf
 
         
-    def add_pred_cols(self, df):
+    def add_signal_cols(self, df):
         try:
-            bdf, test_X = prepare_data(df, self.winlen, self.future, training=False)
-            _ = self.load_model()
-            bdf['pred'] = self.model.predict(test_X)
-            bdf['speed'] = np.exp(bdf.pred)
-            bdf['speed'] = bdf.speed.pct_change()
-            bdf.speed.fillna(0, inplace=True)
-            bdf['last5_freq'] = bdf['speed'].rolling(5).apply(lambda x: sum(x>0)/len(x))
-            bdf['last10_freq'] = bdf['speed'].rolling(10).apply(lambda x: sum(x>0)/len(x))
-            bdf['last15_freq'] = bdf['speed'].rolling(15).apply(lambda x: sum(x>0)/len(x))
+            cdf = df.copy()
+            cdf['EMA_5'] = pta.ema(cdf.close, 5)
+            cdf['EMA_10'] = pta.ema(cdf.close, 10)
+            cdf['EMA_20'] = pta.ema(cdf.close, 20)
+            cdf['EMA_30'] = pta.ema(cdf.close, 30)
+            cdf['EMA_60'] = pta.ema(cdf.close, 60)
+
+            # Add uptrend
+            cdf['uptrend'] = (cdf.EMA_10> cdf.EMA_10.shift(1))&(cdf.EMA_20> cdf.EMA_20.shift(1))
+
+            # Add volatility by rmse based on polynomial fit
+            cdf['rmse_10'] = cdf.close.rolling(window=60).apply(cal_rmse, raw=True, kwargs={'d':10,'period':10})
+
+            # # Add just bullish alignment
+            # cdf['bullish'] = (cdf['EMA_5'] > cdf['EMA_10']) & (cdf['EMA_10'] > cdf['EMA_20'])
+            # cdf['turn_bullish'] = (cdf['bullish']) & ((~cdf['bullish']).shift(1))
+            # sel_close = cdf[cdf.turn_bullish]['close']
+            # cdf['just_bullish'] = 0
+            # id = sel_close[sel_close < sel_close.shift(1)].index
+            # cdf.loc[id,'just_bullish'] = 1
+            
+            # Add dist between average 10 and average 60
+            cdf['dist_avgs'] = abs(cdf.EMA_10/cdf.EMA_60-1)
+            cdf.set_index('date', inplace=True)
+
+            # Add prediction signals
+            model = TrendPredModel(self.winlen)
+            bdf = model.predict(df)
+            bdf = pd.concat([cdf, bdf], join='inner', axis=1)
+            bdf.reset_index(inplace=True)
+
+            # Add accel strength
+            bdf['accel'] = np.exp(bdf.prediction)
+            bdf['accel'] = bdf.accel.pct_change()
+            bdf.dropna(inplace=True)
+            if len(bdf) < 15:
+                print(f"{len(bdf)} samples is not enough. At least 15 samples required for bottom strength calculation")
+            bdf['last5_freq'] = bdf['accel'].rolling(5).apply(lambda x: sum(x>0)/len(x))
+            bdf['last10_freq'] = bdf['accel'].rolling(10).apply(lambda x: sum(x>0)/len(x))
+            bdf['last15_freq'] = bdf['accel'].rolling(15).apply(lambda x: sum(x>0)/len(x))
             bdf['btm_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1)
             bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
         except:
@@ -151,19 +170,19 @@ class auto_trade():
         return bdf
 
     def signal_pool(self, code_list, pred_df_list, date, save=False):
-        fetched_code, close_list, pred_list, speed_list, btm_strength_list =[], [], [], [], []
+        fetched_code, close_list, pred_list, accel_list, btm_strength_list =[], [], [], [], []
         for code, pred_df in zip(code_list, pred_df_list):
             if len(pred_df)!=0:
                 try:
                     fetched_code.append(code)
                     close_list.append(pred_df.iloc[-1]['close'])
-                    pred_list.append(pred_df.iloc[-1]['pred'])
-                    speed_list.append(pred_df.iloc[-1]['speed'])
+                    pred_list.append(pred_df.iloc[-1]['prediction'])
+                    accel_list.append(pred_df.iloc[-1]['accel'])
                     btm_strength_list.append(pred_df.iloc[-1]['btm_strength'])
                 except Exception as e:
                     print(code, e)
                     continue
-        rdf = pd.DataFrame({'code':fetched_code, 'close': close_list, 'pred':pred_list, 'speed':speed_list, 'btm_strength':btm_strength_list})
+        rdf = pd.DataFrame({'code':fetched_code, 'close': close_list, 'pred':pred_list, 'accel':accel_list, 'btm_strength':btm_strength_list})
         rdf.set_index('code', inplace=True)
         if save & (len(rdf)!=0):
             rdf.to_csv(f'./results/{date}_{self.market}_signal_pool.csv')
@@ -173,23 +192,13 @@ class auto_trade():
 
 if __name__ =='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--download_data', action='store_true')
-    parser.add_argument('--train', action='store_true')
     parser.add_argument('--backtest', action='store_true')
     parser.add_argument('--realtime_hk', action='store_true')
-    parser.add_argument('--realtime_us', action='store_true')
-    parser.add_argument('--realtime_crypto', action='store_true')
     args = parser.parse_args()
-
-    if args.download_data:
-        auto_trade_today = auto_trade('lenet')
-        auto_trade_today.fetch_train_data()
-    if args.train:
-        auto_trade_today = auto_trade('lenet')
-        auto_trade_today.train(lr=1e-4)   
+ 
     if args.backtest:
         auto_trade_today = auto_trade('lenet')
-        auto_trade_today.backtest(days=500, record=True) #code_list=['0285']
+        auto_trade_today.backtest_single(days=500, record=True) #code_list=['0285']
     
         
       

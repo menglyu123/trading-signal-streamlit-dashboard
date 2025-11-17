@@ -61,7 +61,7 @@ class lenet_regression:
         plt.plot(history.history['val_loss'],c='red', label='testing')
         plt.legend()
         plt.title("loss function value")
-        plt.savefig('./result/training&val_performance_transformer_regression.jpg')
+        plt.savefig(f'{path}/training&val_performance_transformer_regression.jpg')
     #------------------------------------------
 
 

@@ -1,10 +1,12 @@
+from futu import *
 import datetime as dt
+import pandas as pd
 import yfinance as yf
 from curl_cffi import requests
 
 
 with open('./data/code_pool_hk.txt','r') as fp:
-    CODE_LIST = [line.rstrip() for line in fp]
+    HK_CODE_LIST = [line.rstrip() for line in fp]
 
 def download_yf_data(code_list, start_date=None, end_date=None):
     """
@@ -39,3 +41,29 @@ def download_yf_data(code_list, start_date=None, end_date=None):
     except Exception as e:
         print(f"Error downloading batch data: {e}")
         return None
+    
+
+def download_futu_historical_daily_data(ticker, start:dt.date, end:dt.date)-> pd.DataFrame:
+    '''
+    ticker: "HK.00700" or "US.AAPL"
+    output: a dataframe with columns: date, open, high, low, close, volume
+    '''
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111) 
+    ret, df, _ = quote_ctx.request_history_kline(ticker, 
+                                                    start=str(start), 
+                                                    end= str(end), 
+                                                    max_count= None, 
+                                                    fields=[KL_FIELD.DATE_TIME,
+                                                            KL_FIELD.OPEN,
+                                                            KL_FIELD.HIGH,
+                                                            KL_FIELD.LOW,
+                                                            KL_FIELD.CLOSE,
+                                                            KL_FIELD.TRADE_VOL])
+    if ret !=RET_OK:
+        print('error: ', df)
+        df = pd.DataFrame()
+    else:
+        df = df[df.columns[-6:]].rename(columns={"time_key":"date"})
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+    quote_ctx.close()
+    return df

@@ -4,8 +4,10 @@ plotly
 numpy
 pandas-ta
 statsmodels
-yfinance==0.2.58
-curl-cffi==0.7.4
-matplotlib>=3.5.0 
-tensorflow>=2.13.0
+yfinance
+curl-cffi
+matplotlib
+tensorflow
 scikit-learn
+futu-api
+protobuf==3.20.0 # a lower version to make sure futu-api runs correctly

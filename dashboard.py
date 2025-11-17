@@ -7,12 +7,12 @@ st.set_page_config(layout="wide", page_title="HK Stock Market Predictions")
 import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
-import io
+import io, time
 import numpy as np
-from data.import_data import download_yf_data
+from data.import_data import download_futu_historical_daily_data, download_yf_data
 
 
-def get_last_n_trading_days_predictions(n, trader, market_choice, from_date=None):
+def get_last_n_trading_days_predictions(n, trader, from_date=None):
     """
     Get predictions for the last n trading days
     Returns a tuple of (predictions_list, dates_list)
@@ -24,43 +24,52 @@ def get_last_n_trading_days_predictions(n, trader, market_choice, from_date=None
     current_date = pd.Timestamp(from_date)
 
     # Download data once for all dates with enough history
-    start_date = current_date - dt.timedelta(days=trader.winlen+60+90+n+16)
-    data = download_yf_data(trader.code_list, start_date=start_date, end_date=current_date)
-    
+    start_date = current_date - dt.timedelta(days=trader.winlen+60+90+n+40)
+
+    data = {}
+
+    # Download US market data
+    if trader.market == 'US':      
+        rs = download_yf_data(trader.code_list, start_date, current_date)
+        tickers = set(rs.columns.get_level_values(0))
+        for ticker in tickers:
+            df = rs[ticker].reset_index()
+            df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close', 'Volume':'volume'},inplace=True)
+            data[ticker] = df
+        
+    # Download HK market data
+    if trader.market == 'HK':
+        for i, ticker in enumerate(trader.code_list):
+            # download_ticker = ticker
+            # if trader.market == 'HK':
+            download_ticker = 'HK.0'+ticker
+            # if trader.market == 'US':
+            #     download_ticker = 'US.'+ticker
+            if i%60 == 0:
+                tick = time.time()
+            data[ticker] = download_futu_historical_daily_data(download_ticker, start_date, current_date)
+            time_cost = time.time()-tick
+            if ((i+1)%60==0) & (time_cost<=30):
+                time.sleep(31-time_cost)
     if data is None:
         return [], []
     
     for ticker in trader.code_list:
-        if ticker not in data.columns.levels[0]:
-            continue
         # Get data up to current date
+        print(f"predict {ticker}")
         df = data[ticker].copy()
-        # Prepare data for prediction
-        df = df.reset_index()
-        df.rename(columns={
-            'Date': 'date',
-            'Open': 'open',
-            'High': 'high',
-            'Low': 'low',
-            'Close': 'close',
-            'Volume': 'volume'
-        }, inplace=True)
-        df['date'] = pd.to_datetime(df['date']).dt.date
-        pred_df = trader.add_pred_cols(df)
+        pred_df = trader.add_signal_cols(df)
         if len(pred_df) < 3:
             print("error ticker", ticker)
             continue
-        if market_choice == 'HK':
-            pred_df['code'] = ticker.replace('.HK','')
-        else:  # US market
-            pred_df['code'] = ticker
-        preds_df_comb.append(pred_df[['date','code','pred','speed', 'btm_strength', 'close']])
+        pred_df['code'] = ticker
+        preds_df_comb.append(pred_df)
     
     comb = pd.concat(preds_df_comb, axis=0)
     predictions_list = []
     dates_list = []
     for date in comb.date.unique():
-        pred_df = comb[comb.date==date][['code','pred','speed', 'btm_strength', 'close']]
+        pred_df = comb[comb.date==date]
         pred_df.set_index('code', inplace=True)
         predictions_list.append(pred_df)
         dates_list.append(date)
@@ -75,15 +84,15 @@ def plot_single(code, bdf):
     plt.plot(bdf.date, bdf.EMA_10, label='EMA_10')
     plt.plot(bdf.date, bdf.EMA_20, label='EMA_20')
     plt.plot(bdf.date, bdf.EMA_60, label='EMA_60')
-    bdf['speed'] = np.exp(bdf.predict)
-    bdf['speed'] = bdf.speed.pct_change()
-    bdf.speed.fillna(0, inplace=True)
+    bdf['accel'] = np.exp(bdf.prediction)
+    bdf['accel'] = bdf.accel.pct_change()
+    bdf.accel.fillna(0, inplace=True)
 
-    pred_mask = [True if p>0 else False for p in bdf.predict]
-    speed_mask = [True if p>0 else False for p in bdf.speed]
-    plt.scatter(bdf[pred_mask]['date'], bdf[pred_mask]['close'], s=30*bdf[pred_mask]['predict'], c='blue', marker='o', label='Predict')
-    plt.scatter(bdf[speed_mask]['date'], bdf[speed_mask]['close'], s=40*bdf[speed_mask]['speed'], c='red', marker='+', label='Speed')
-    
+    pred_mask = [True if p>0 else False for p in bdf.prediction]
+    accel_mask = [True if p>0 else False for p in bdf.accel]
+    plt.scatter(bdf[pred_mask]['date'], bdf[pred_mask]['close'], s=30*bdf[pred_mask]['prediction'], c='blue', marker='o', label='Predict')
+    plt.scatter(bdf[accel_mask]['date'], bdf[accel_mask]['close'], s=40*bdf[accel_mask]['accel'], c='red', marker='+', label='accel')
+ 
     plt.title(f'{code}')
     plt.legend()
     plt.grid(True)
@@ -112,7 +121,7 @@ def plot_prediction_histogram(predictions_list, dates_list):
     # Get the global min and max for consistent bins
     all_preds = []
     for pred_df in predictions_list[:3]:  # Use only the first 3 days
-        all_preds.extend(pred_df['pred'].values)
+        all_preds.extend(pred_df['prediction'].values)
     bins = np.linspace(min(all_preds), max(all_preds), 30)
     
     # Create figure with three subplots in one row
@@ -124,13 +133,13 @@ def plot_prediction_histogram(predictions_list, dates_list):
     
     # Plot for each of the last 3 days
     for i, (pred_df, date, ax, color, dark_color) in enumerate(zip(predictions_list[:3], dates_list[:3], [ax1, ax2, ax3], colors, dark_colors)):
-        ax.hist(pred_df['pred'], 
+        ax.hist(pred_df['prediction'], 
                 bins=bins,
                 color=color,
                 alpha=0.6,
                 edgecolor='black',
                 linewidth=1)
-        mean_val = pred_df['pred'].mean()
+        mean_val = pred_df['prediction'].mean()
         ax.axvline(x=mean_val, 
                     color=dark_color,
                     linestyle='--',
@@ -154,11 +163,11 @@ def plot_prediction_histogram(predictions_list, dates_list):
 # Initialize Signal_Model
 @st.cache_resource
 def get_trader_hk():
-    return auto_trade('lenet', 'hk')
+    return auto_trade('HK')
 
 @st.cache_resource
 def get_trader_us():
-    return auto_trade('lenet', 'us')
+    return auto_trade('US')
 
 # Market selection
 market_choice = st.selectbox(
@@ -171,9 +180,7 @@ market_choice = st.selectbox(
 # Get the appropriate trader based on market choice
 if market_choice == 'HK':
     trader = get_trader_hk()
-    if trader is not None:
-        trader.code_list = [code if code.endswith('.HK') else f"{code}.HK" for code in trader.code_list]
-else:  # US market
+if market_choice =='US':
     trader = get_trader_us()
 
 
@@ -209,7 +216,7 @@ with col1:
     if st.session_state.update_clicked:
         with st.spinner("Fetching predictions for all stocks..."):
             # Get predictions for last 3 trading days
-            predictions_list, dates_list = get_last_n_trading_days_predictions(3, trader, market_choice)
+            predictions_list, dates_list = get_last_n_trading_days_predictions(3, trader)
             
             if len(predictions_list) == 3:
                 st.session_state.predictions_df = predictions_list[2]
@@ -239,16 +246,16 @@ with col2:
 
 if st.session_state.predictions_df is not None:
    # col1, col2 = st.columns([1,1])
-   # with col1:
-    st.subheader("Top 10 Bullish Predictions")
     tmp_df = st.session_state.predictions_df.copy()
-    tmp_df['bottom_strength'] = tmp_df['btm_strength']*((tmp_df.pred>-0.15)&(tmp_df.pred<0.15)).astype(int)
-    top_10 = tmp_df.sort_values('bottom_strength', ascending=False).head(10)
-    st.dataframe(top_10[['bottom_strength','speed', 'pred', 'close']])
+    with col1:
+        st.subheader("Top 10 Bullish Predictions")
+        tmp_df['bottom_strength'] = tmp_df['btm_strength']*tmp_df.uptrend.astype(int)
+        top_10 = tmp_df.sort_values('bottom_strength', ascending=False).head(10)
+        st.dataframe(top_10[['bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
     # with col2:
-    #      st.subheader("Top 10 Bearish Predictions")
-    #      bottom_10 = st.session_state.predictions_df.sort_values('pred').head(10)
-    #      st.dataframe(bottom_10[['pred', 'close']])
+    #     st.subheader("Top 10 Bearish Predictions")
+    #     top_10 = tmp_df.sort_values('top_collapse', ascending=False).head(10)
+    #     st.dataframe(top_10[['btm_strength','top_collapse','accel', 'prediction', 'close']])
 
 
 # Individual Stock Analysis Section
@@ -259,10 +266,10 @@ if 'predictions_df' not in st.session_state or st.session_state.predictions_df i
     st.info("Please click 'Update Market Predictions' to analyze individual stocks.")
 else:
     # Create sorted options for the dropdown
-    predictions_sorted = st.session_state.predictions_df.sort_values('pred', ascending=False)
+    predictions_sorted = st.session_state.predictions_df.sort_values('prediction', ascending=False)
     stock_options = []
     for code in predictions_sorted.index:
-        pred_value = predictions_sorted.loc[code, 'pred']
+        pred_value = predictions_sorted.loc[code, 'prediction']
         # Format the display string with stock code and prediction value only
         display_string = f"{code} (Pred: {pred_value:.3f})"
         stock_options.append(display_string)
@@ -278,43 +285,43 @@ else:
         days = st.slider("Analysis Period (Days)", min_value=30, max_value=500, value=100, step=10)
         
         # Extract stock codes from the selected options
-        selected_codes = [stock.split()[0] for stock in selected_stocks]
-        if market_choice == 'HK':
-            selected_tickers = [f"{code}.{market_choice}" for code in selected_codes]
-        else:  # US market
-            selected_tickers = selected_codes
-            
+        selected_tickers = [stock.split()[0] for stock in selected_stocks]
         
         # Download data for all selected stocks at once
         today = dt.date.today()
-        start_date = today - dt.timedelta(days=trader.winlen+60+days)
+        start_date = today - dt.timedelta(days=trader.winlen+60+20+days)
         
         with st.spinner(f"Fetching data for selected stocks..."):
-            data = download_yf_data(selected_tickers, start_date=start_date, end_date=today)
-            if data is not None:
-                all_stock_data = {}
-                for ticker in selected_tickers:
-                    if ticker in data.columns.levels[0]:
-                        # Extract and prepare individual stock data
-                        df = data[ticker].copy()
-                        df = df.reset_index()
-                        df.rename(columns={
-                            'Date': 'date',
-                            'Open': 'open',
-                            'High': 'high',
-                            'Low': 'low',
-                            'Close': 'close',
-                            'Volume': 'volume'
-                        }, inplace=True)
-                        df['date'] = pd.to_datetime(df['date']).dt.date
-                        if market_choice == 'HK':
-                            code = ticker.replace('.HK','')
-                        else:  # US market
-                            code = ticker
-                        all_stock_data[code] = df
+            all_stock_data = {}
+            # Download US market data using yfinance
+            if market_choice == 'US':
+                rs = download_yf_data(selected_tickers, start_date, today)
+                tickers = set(rs.columns.get_level_values(0))
+                for ticker in tickers:
+                    df = rs[ticker].reset_index()
+                    df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close', 'Volume':'volume'},inplace=True)
+                    all_stock_data[ticker] = df
+
+            # Download HK market data using futu
+            if market_choice == 'HK':
+                # rs = download_yf_data(['^HSI'], start_date, today)
+                # df = rs['^HSI'].reset_index()
+                # df.loc[len(df)-1,'Volume'] = df.iloc[-2]['Volume']
+                # df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close', 'Volume':'volume'},inplace=True)
+                # all_stock_data['HSI (Hang Sheng Index)'] = df
+                for i, ticker in enumerate(selected_tickers):
+                    download_ticker = 'HK.0'+ticker
+                    # if market_choice == 'US':
+                    #     download_ticker = 'US.'+ticker
+                    if i%60 == 0:
+                        tick = time.time()
+                    all_stock_data[ticker] = download_futu_historical_daily_data(download_ticker, start_date, today)
+                    time_cost = time.time()-tick
+                    if ((i+1)%60==0) & (time_cost<=30):
+                        time.sleep(31-time_cost)
         
         if all_stock_data:
-            for stock in selected_codes:
+            for stock in all_stock_data.keys():
                 st.subheader(f"Stock: {stock}")
                 
                 df = all_stock_data.get(stock)
@@ -322,7 +329,7 @@ else:
                     st.error(f"Error fetching data for stock {stock}")
                 else:
                     # Run backtest_single
-                    result_df, _ = trader.backtest_single(df)
+                    result_df = trader.backtest_single(df)
                     
                     if result_df is not None:
                         # Create and display plot directly from memory
