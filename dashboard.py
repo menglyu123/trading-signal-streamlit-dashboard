@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import io, time
 import numpy as np
 from data.import_data import download_futu_historical_daily_data, download_yf_data
+from util import get_sector
 
 
 def get_last_n_trading_days_predictions(n, trader, from_date=None):
@@ -150,7 +151,7 @@ def plot_prediction_histogram(predictions_list, dates_list):
         ax.legend()
         ax.grid(True, alpha=0.3)
     
-    plt.suptitle(f'Distribution of Predictions Across All {market_choice} Stocks (Last 3 Trading Days)', y=1.05)
+    plt.suptitle(f'Distribution of Predictions Across All {market_choice} Stocks (Last 3 Trading Days)')
     plt.tight_layout()
     
     # Save plot to bytes buffer
@@ -159,6 +160,53 @@ def plot_prediction_histogram(predictions_list, dates_list):
     plt.close()
     buf.seek(0)
     return buf
+
+def build_sector_distribution_chart(predictions_df):
+    """
+    Build a bar chart showing average prediction by sector for HK market.
+    Returns matplotlib figure buffer or None if unavailable.
+    """
+    if predictions_df is None or predictions_df.empty:
+        return None
+    try:
+        sector_df = get_sector(None)
+        if sector_df is None or sector_df.empty:
+            return None
+        merged = (
+            predictions_df.reset_index()
+            .merge(sector_df, on='code', how='inner')
+        )
+        if merged.empty or 'sector' not in merged.columns:
+            return None
+        sector_avg = (
+            merged.groupby('sector')['prediction']
+            .mean()
+            .sort_values(ascending=True)
+        )
+        if sector_avg.empty:
+            return None
+        fig, ax = plt.subplots(figsize=(8, max(4, len(sector_avg) * 0.35)))
+        colors = ['green' if val >= 0 else 'red' for val in sector_avg.values]
+        ax.barh(sector_avg.index, sector_avg.values, color=colors, alpha=0.75)
+        ax.axvline(0, color='black', linestyle='--', linewidth=1, alpha=0.6)
+        ax.set_xlabel('Average Prediction Value')
+        ax.set_ylabel('Sector')
+        ax.set_title('Average Prediction by Sector (Latest Day)')
+        for idx, val in enumerate(sector_avg.values):
+            offset = 0.01 if val >= 0 else -0.01
+            ax.text(val + offset, idx, f'{val:.3f}',
+                    va='center',
+                    ha='left' if val >= 0 else 'right',
+                    fontsize=6)
+        plt.tight_layout()
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=300)
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+    except Exception as e:
+        print(f"Sector chart error: {e}")
+        return None
 
 # Initialize Signal_Model
 @st.cache_resource
@@ -237,6 +285,19 @@ with col1:
     # Always display histogram if it exists
     if st.session_state.histogram_image is not None:
         st.image(st.session_state.histogram_image)
+    else:
+        st.info("Distribution histogram will appear after predictions are fetched.")
+
+    # Sector distribution for HK market
+    if market_choice == 'HK':
+        if st.session_state.predictions_df is not None:
+            sector_chart = build_sector_distribution_chart(st.session_state.predictions_df)
+            if sector_chart is not None:
+                st.image(sector_chart)
+            else:
+                st.info("Unable to display sector distribution (requires Futu API data).")
+        else:
+            st.info("Sector distribution will appear after predictions are fetched.")
 
 with col2:
     if st.session_state.last_update:
