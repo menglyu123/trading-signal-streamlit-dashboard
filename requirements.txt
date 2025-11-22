@@ -1,13 +1,11 @@
-streamlit
 pandas
-plotly
 numpy
 pandas-ta
 statsmodels
 yfinance
-curl-cffi
+curl_cffi
 matplotlib
 tensorflow
 scikit-learn
 futu-api
-protobuf==3.20.0 # a lower version to make sure futu-api runs correctly
+streamlit
