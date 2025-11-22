@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import io, time
 import numpy as np
 from data.import_data import download_futu_historical_daily_data, download_yf_data
-from util import get_sector
+from data.import_data import get_sector
 
 
 def get_last_n_trading_days_predictions(n, trader, from_date=None):
@@ -131,27 +131,38 @@ def plot_prediction_histogram(predictions_list, dates_list):
     # Colors for each day
     colors = ['red', 'green', 'blue']
     dark_colors = ['darkred', 'darkgreen', 'darkblue']
+    min_count_value, max_count_value = 0, 0
     
     # Plot for each of the last 3 days
     for i, (pred_df, date, ax, color, dark_color) in enumerate(zip(predictions_list[:3], dates_list[:3], [ax1, ax2, ax3], colors, dark_colors)):
-        ax.hist(pred_df['prediction'], 
+        counts, _, _ = ax.hist(pred_df['prediction'], 
                 bins=bins,
                 color=color,
                 alpha=0.6,
                 edgecolor='black',
                 linewidth=1)
+        min_count_value = min(min_count_value, min(counts))
+        max_count_value = max(max_count_value, max(counts))
         mean_val = pred_df['prediction'].mean()
         ax.axvline(x=mean_val, 
                     color=dark_color,
                     linestyle='--',
                     label=f'Mean: {mean_val:.3f}')
-        ax.set_title(f'{date}')
-        ax.set_xlabel('Prediction Value')
-        ax.set_ylabel('Number of Stocks')
-        ax.legend()
+        ax.legend(fontsize=16)
+        ax.tick_params(axis='x', labelsize=16)
+        ax.tick_params(axis='y', labelsize=16) 
+        ax.set_title(f'{date}', fontsize = 16)
         ax.grid(True, alpha=0.3)
-    
-    plt.suptitle(f'Distribution of Predictions Across All {market_choice} Stocks (Last 3 Trading Days)')
+    ax1.set_ylim(min_count_value, max_count_value)
+    ax2.set_ylim(min_count_value, max_count_value)
+    ax3.set_ylim(min_count_value, max_count_value)
+    ax1.set_xlabel('')
+    ax2.set_xlabel('')
+    ax3.set_xlabel('')
+    ax2.set_ylabel('')
+    ax3.set_ylabel('')
+    ax1.set_ylabel('Number of Stocks', fontsize=16)
+    plt.suptitle('Distribution of Prediction Values Across All Stocks (Last 3 Trading Days)', fontsize=18, fontweight='bold')
     plt.tight_layout()
     
     # Save plot to bytes buffer
@@ -161,9 +172,9 @@ def plot_prediction_histogram(predictions_list, dates_list):
     buf.seek(0)
     return buf
 
-def build_sector_distribution_chart(predictions_df):
+def build_sector_distribution_three_days(predictions_df, predictions_df_yesterday, predictions_df_2days_ago, dates_list):
     """
-    Build a bar chart showing average prediction by sector for HK market.
+    Build three bar charts side by side showing average prediction by sector for the last 3 days.
     Returns matplotlib figure buffer or None if unavailable.
     """
     if predictions_df is None or predictions_df.empty:
@@ -172,33 +183,101 @@ def build_sector_distribution_chart(predictions_df):
         sector_df = get_sector(None)
         if sector_df is None or sector_df.empty:
             return None
-        merged = (
-            predictions_df.reset_index()
-            .merge(sector_df, on='code', how='inner')
-        )
-        if merged.empty or 'sector' not in merged.columns:
+        
+        # Get all unique sectors from all three days
+        all_sectors = set()
+        sector_data = {}
+        
+        for df, date in zip([predictions_df_2days_ago, predictions_df_yesterday, predictions_df], 
+                           dates_list if len(dates_list) >= 3 else [None, None, None]):
+            if df is None or df.empty:
+                continue
+            merged = df.reset_index().merge(sector_df, on='code', how='inner')
+            if merged.empty or 'sector' not in merged.columns:
+                continue
+            sector_avg = merged.groupby('sector')['prediction'].mean()
+            sector_data[date] = sector_avg
+            all_sectors.update(sector_avg.index)
+        
+        if not all_sectors:
             return None
-        sector_avg = (
-            merged.groupby('sector')['prediction']
-            .mean()
-            .sort_values(ascending=True)
-        )
-        if sector_avg.empty:
-            return None
-        fig, ax = plt.subplots(figsize=(8, max(4, len(sector_avg) * 0.35)))
-        colors = ['green' if val >= 0 else 'red' for val in sector_avg.values]
-        ax.barh(sector_avg.index, sector_avg.values, color=colors, alpha=0.75)
-        ax.axvline(0, color='black', linestyle='--', linewidth=1, alpha=0.6)
-        ax.set_xlabel('Average Prediction Value')
-        ax.set_ylabel('Sector')
-        ax.set_title('Average Prediction by Sector (Latest Day)')
-        for idx, val in enumerate(sector_avg.values):
-            offset = 0.01 if val >= 0 else -0.01
-            ax.text(val + offset, idx, f'{val:.3f}',
-                    va='center',
-                    ha='left' if val >= 0 else 'right',
-                    fontsize=6)
+        
+        # Sort sectors by average value from the latest day
+        if predictions_df is not None and not predictions_df.empty:
+            latest_merged = predictions_df.reset_index().merge(sector_df, on='code', how='inner')
+            if not latest_merged.empty:
+                latest_sector_avg = latest_merged.groupby('sector')['prediction'].mean()
+                sorted_sectors = latest_sector_avg.sort_values(ascending=True).index.tolist()
+            else:
+                sorted_sectors = sorted(all_sectors)
+        else:
+            sorted_sectors = sorted(all_sectors)
+        
+        # Create figure with three subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5)) #(24, max(6, len(sorted_sectors) * 0.4))
+        
+        # Plot for each day
+        dates = dates_list if len(dates_list) >= 3 else [None, None, None]
+        axes = [ax1, ax2, ax3]
+        data_list = [predictions_df_2days_ago, predictions_df_yesterday, predictions_df]
+        min_sector_value, max_sector_value = 0, 0
+        
+        for ax, df, date in zip(axes, data_list, dates):
+            if df is None or df.empty:
+                ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
+                ax.set_title(f'No Data' if date is None else f'{date}')
+                ax.set_xlabel('Average Prediction Value', fontsize=16)
+                continue
+            
+            merged = df.reset_index().merge(sector_df, on='code', how='inner')
+            if merged.empty:
+                ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
+                ax.set_title(f'No Data' if date is None else f'{date}')
+                ax.set_xlabel('Average Prediction Value', fontsize=16)
+                continue
+            
+            sector_avg = merged.groupby('sector')['prediction'].mean()
+            
+            # Align sectors with sorted order
+            sector_values = [sector_avg.get(s, 0) for s in sorted_sectors]
+            min_sector_value = min(min_sector_value, min(sector_values))
+            max_sector_value = max(max_sector_value, max(sector_values))
+            colors = ['green' if val >= 0 else 'gray' for val in sector_values]
+            ax.barh(range(len(sorted_sectors)), sector_values, color=colors, alpha=0.75)
+            ax.axvline(0, color='black', linestyle='--', linewidth=1, alpha=0.6)  
+            ax.tick_params(axis='x', labelsize=16)  # Change x-ticker size
+            ax.tick_params(axis='y', labelsize=16)  # Change y-ticker size
+            ax.set_title(f'{date}' if date else 'Average Prediction by Sector', fontsize = 16)
+            
+            # Add value labels
+            for idx, val in enumerate(sector_values):
+                if val != 0:  # Only label non-zero values
+                    offset = 0.01 if val >= 0 else -0.01
+                    ax.text(val + offset, idx, f'{val:.3f}',
+                           va='center',
+                           ha='left' if val >= 0 else 'right',
+                           fontsize=16)
+        
+        # Only show y-axis labels on the leftmost plot
+           # Set the x-limits based on min and max values
+        ax1.set_xlim(min_sector_value, max_sector_value)
+        ax2.set_xlim(min_sector_value, max_sector_value)
+        ax3.set_xlim(min_sector_value, max_sector_value)
+        ax1.set_yticks(range(len(sorted_sectors)))
+        ax1.set_yticklabels(sorted_sectors, fontsize=16)
+        ax2.set_yticklabels('')
+        ax3.set_yticklabels('')
+        ax2.set_ylabel('')
+        ax3.set_ylabel('')
+        ax1.set_ylabel('')
+        ax2.set_xlabel('')
+        ax3.set_xlabel('')
+        ax1.set_xlabel('')
+        
+        plt.suptitle('Sector Distribution - Average Prediction Values (Last 3 Trading Days)', 
+                    fontsize=18, fontweight='bold')
         plt.tight_layout()
+        
         buf = io.BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', dpi=300)
         plt.close(fig)
@@ -250,13 +329,15 @@ if 'histogram_image' not in st.session_state:
     st.session_state.histogram_image = None
 if 'update_clicked' not in st.session_state:
     st.session_state.update_clicked = False
+if 'dates_list' not in st.session_state:
+    st.session_state.dates_list = None
 
 st.title(f"{market_choice} Stock Market Predictions Dashboard")
 
 # Market Predictions Section
 st.header("Market-wide Predictions")
 
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([4, 1])
 with col1:
     if st.button("Update Market Predictions", key="update_button"):
         st.session_state.update_clicked = True
@@ -270,6 +351,7 @@ with col1:
                 st.session_state.predictions_df = predictions_list[2]
                 st.session_state.predictions_df_yesterday = predictions_list[1]
                 st.session_state.predictions_df_2days_ago = predictions_list[0]
+                st.session_state.dates_list = dates_list
                 st.session_state.last_update = dt.datetime.now()
                 
                 # Update the plot titles with actual dates
@@ -286,12 +368,20 @@ with col1:
     if st.session_state.histogram_image is not None:
         st.image(st.session_state.histogram_image)
     else:
-        st.info("Distribution histogram will appear after predictions are fetched.")
+        st.info("Market histogram will appear after predictions are fetched.")
 
-    # Sector distribution for HK market
+    # Sector distribution for HK market (3 days side by side)
     if market_choice == 'HK':
-        if st.session_state.predictions_df is not None:
-            sector_chart = build_sector_distribution_chart(st.session_state.predictions_df)
+        if (st.session_state.predictions_df is not None and 
+            st.session_state.predictions_df_yesterday is not None and 
+            st.session_state.predictions_df_2days_ago is not None and
+            st.session_state.dates_list is not None):
+            sector_chart = build_sector_distribution_three_days(
+                st.session_state.predictions_df,
+                st.session_state.predictions_df_yesterday,
+                st.session_state.predictions_df_2days_ago,
+                st.session_state.dates_list
+            )
             if sector_chart is not None:
                 st.image(sector_chart)
             else:
