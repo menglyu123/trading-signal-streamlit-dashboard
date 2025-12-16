@@ -3,14 +3,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TensorFlow warnings
 from auto_trade import auto_trade
 import streamlit as st
 # Must be the first Streamlit command
-st.set_page_config(layout="wide", page_title="HK Stock Market Predictions")
+st.set_page_config(layout="wide", page_title="Stock Market Predictions")
 import pandas as pd
 import datetime as dt
 import matplotlib.pyplot as plt
 import io, time
 import numpy as np
-from data.import_data import download_futu_historical_daily_data, download_yf_data
-from data.import_data import get_sector
+from data.import_data import Market, get_sector, download_futu_historical_daily_data, download_alpaca_daily_data
 
 
 def get_last_n_trading_days_predictions(n, trader, from_date=None):
@@ -22,7 +21,7 @@ def get_last_n_trading_days_predictions(n, trader, from_date=None):
         from_date = pd.Timestamp.now().date()
     
     preds_df_comb = []
-    current_date = pd.Timestamp(from_date)
+    current_date = pd.Timestamp(from_date).date()
 
     # Download data once for all dates with enough history
     start_date = current_date - dt.timedelta(days=trader.winlen+60+90+n+40)
@@ -30,22 +29,14 @@ def get_last_n_trading_days_predictions(n, trader, from_date=None):
     data = {}
 
     # Download US market data
-    if trader.market == 'US':      
-        rs = download_yf_data(trader.code_list, start_date, current_date)
-        tickers = set(rs.columns.get_level_values(0))
-        for ticker in tickers:
-            df = rs[ticker].reset_index()
-            df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close', 'Volume':'volume'},inplace=True)
-            data[ticker] = df
+    if trader.market == Market.US.name:  
+        for code in trader.code_list:  
+            data[code] = download_alpaca_daily_data(code, start_date, current_date)
         
     # Download HK market data
-    if trader.market == 'HK':
+    if trader.market == Market.HK.name:
         for i, ticker in enumerate(trader.code_list):
-            # download_ticker = ticker
-            # if trader.market == 'HK':
             download_ticker = 'HK.0'+ticker
-            # if trader.market == 'US':
-            #     download_ticker = 'US.'+ticker
             if i%60 == 0:
                 tick = time.time()
             data[ticker] = download_futu_historical_daily_data(download_ticker, start_date, current_date)
@@ -172,7 +163,7 @@ def plot_prediction_histogram(predictions_list, dates_list):
     buf.seek(0)
     return buf
 
-def build_sector_distribution_three_days(predictions_df, predictions_df_yesterday, predictions_df_2days_ago, dates_list):
+def build_sector_distribution_three_days(predictions_df, predictions_df_yesterday, predictions_df_2days_ago, dates_list, market):
     """
     Build three bar charts side by side showing average prediction by sector for the last 3 days.
     Returns matplotlib figure buffer or None if unavailable.
@@ -180,7 +171,7 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
     if predictions_df is None or predictions_df.empty:
         return None
     try:
-        sector_df = get_sector(None)
+        sector_df = get_sector(Market(market).code_list())
         if sector_df is None or sector_df.empty:
             return None
         
@@ -203,10 +194,13 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
             return None
         
         # Sort sectors by average value from the latest day
+        sector_count = {}
         if predictions_df is not None and not predictions_df.empty:
             latest_merged = predictions_df.reset_index().merge(sector_df, on='code', how='inner')
             if not latest_merged.empty:
                 latest_sector_avg = latest_merged.groupby('sector')['prediction'].mean()
+                latest_sector_count = latest_merged.groupby('sector')['prediction'].count()
+                sector_count = latest_sector_count.to_dict()
                 sorted_sectors = latest_sector_avg.sort_values(ascending=True).index.tolist()
             else:
                 sorted_sectors = sorted(all_sectors)
@@ -214,7 +208,7 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
             sorted_sectors = sorted(all_sectors)
         
         # Create figure with three subplots
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5)) #(24, max(6, len(sorted_sectors) * 0.4))
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
         
         # Plot for each day
         dates = dates_list if len(dates_list) >= 3 else [None, None, None]
@@ -264,7 +258,7 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
         ax2.set_xlim(min_sector_value, max_sector_value)
         ax3.set_xlim(min_sector_value, max_sector_value)
         ax1.set_yticks(range(len(sorted_sectors)))
-        ax1.set_yticklabels(sorted_sectors, fontsize=16)
+        ax1.set_yticklabels([sec+f' ({sector_count[sec]})' for sec in sorted_sectors], fontsize=16)
         ax2.set_yticklabels('')
         ax3.set_yticklabels('')
         ax2.set_ylabel('')
@@ -290,11 +284,11 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
 # Initialize Signal_Model
 @st.cache_resource
 def get_trader_hk():
-    return auto_trade('HK')
+    return auto_trade(Market.HK.name)
 
 @st.cache_resource
 def get_trader_us():
-    return auto_trade('US')
+    return auto_trade(Market.US.name)
 
 # Market selection
 market_choice = st.selectbox(
@@ -305,9 +299,9 @@ market_choice = st.selectbox(
 )
 
 # Get the appropriate trader based on market choice
-if market_choice == 'HK':
+if market_choice == Market.HK.name:
     trader = get_trader_hk()
-if market_choice =='US':
+if market_choice == Market.US.name:
     trader = get_trader_us()
 
 
@@ -327,6 +321,8 @@ if 'last_update' not in st.session_state:
     st.session_state.last_update = None
 if 'histogram_image' not in st.session_state:
     st.session_state.histogram_image = None
+if 'sector_chart' not in st.session_state:
+    st.session_state.sector_chart = None
 if 'update_clicked' not in st.session_state:
     st.session_state.update_clicked = False
 if 'dates_list' not in st.session_state:
@@ -354,60 +350,69 @@ with col1:
                 st.session_state.dates_list = dates_list
                 st.session_state.last_update = dt.datetime.now()
                 
-                # Update the plot titles with actual dates
+                # Update the prediction histograms
                 st.session_state.histogram_image = plot_prediction_histogram(
                     predictions_list,
                     dates_list
                 )
+                # Update the sector chart if market is HK
+                if market_choice == Market.HK.name:
+                    st.session_state.sector_chart = build_sector_distribution_three_days(
+                            st.session_state.predictions_df,
+                            st.session_state.predictions_df_yesterday,
+                            st.session_state.predictions_df_2days_ago,
+                            st.session_state.dates_list,
+                            market_choice
+                        )
             else:
                 st.error("Could not fetch predictions for all three trading days. Please try again later.")
-            
+               
             st.session_state.update_clicked = False
-
-    # Always display histogram if it exists
-    if st.session_state.histogram_image is not None:
-        st.image(st.session_state.histogram_image)
-    else:
-        st.info("Market histogram will appear after predictions are fetched.")
-
-    # Sector distribution for HK market (3 days side by side)
-    if market_choice == 'HK':
-        if (st.session_state.predictions_df is not None and 
-            st.session_state.predictions_df_yesterday is not None and 
-            st.session_state.predictions_df_2days_ago is not None and
-            st.session_state.dates_list is not None):
-            sector_chart = build_sector_distribution_three_days(
-                st.session_state.predictions_df,
-                st.session_state.predictions_df_yesterday,
-                st.session_state.predictions_df_2days_ago,
-                st.session_state.dates_list
-            )
-            if sector_chart is not None:
-                st.image(sector_chart)
-            else:
-                st.info("Unable to display sector distribution (requires Futu API data).")
-        else:
-            st.info("Sector distribution will appear after predictions are fetched.")
-
 with col2:
     if st.session_state.last_update:
         st.info(f"Last updated: {st.session_state.last_update.strftime('%Y-%m-%d %H:%M:%S')}")
     else:
         st.info("Click 'Update Market Predictions' to fetch data")
 
+# Display prediction histograms
+if st.session_state.histogram_image is not None:
+    st.image(st.session_state.histogram_image)
+
+# Display sector charts only for HK market
+if market_choice == Market.HK.name:
+    if st.session_state.sector_chart is not None:
+        st.image(st.session_state.sector_chart)
+else:
+    st.info("US stock sector info is not available.")
+
+# Display top 10 bullish tickers
 if st.session_state.predictions_df is not None:
-   # col1, col2 = st.columns([1,1])
+    col1, col2 = st.columns([1,1])
     tmp_df = st.session_state.predictions_df.copy()
+    print(tmp_df.columns)
+    if market_choice == Market.HK.name:
+        sector_df = get_sector(Market(market_choice).code_list())
+        sector_df.set_index('code', inplace=True)
+
     with col1:
         st.subheader("Top 10 Bullish Predictions")
-        tmp_df['bottom_strength'] = tmp_df['btm_strength']*tmp_df.uptrend.astype(int)
-        top_10 = tmp_df.sort_values('bottom_strength', ascending=False).head(10)
-        st.dataframe(top_10[['bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
-    # with col2:
-    #     st.subheader("Top 10 Bearish Predictions")
-    #     top_10 = tmp_df.sort_values('top_collapse', ascending=False).head(10)
-    #     st.dataframe(top_10[['btm_strength','top_collapse','accel', 'prediction', 'close']])
-
+        tmp_df['bottom_strength'] = tmp_df['up_strength']*tmp_df.uptrend.astype(int)
+        top_10 = tmp_df.sort_values(['bottom_strength','dist_avgs'], ascending=[False, True]).head(10)
+        if market_choice == Market.HK.name:
+            top_10 = top_10.join(sector_df, how='inner')
+            st.dataframe(top_10[['name','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+        else:
+            st.dataframe(top_10[['bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+    with col2:
+        st.subheader("Top 10 Bearish Predictions")
+        tmp_df1 = st.session_state.predictions_df.copy()
+        tmp_df1['top_collapse'] = tmp_df1['down_strength']*(1-tmp_df1.uptrend.astype(int))
+        top_10 = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, True]).head(10)
+        if market_choice == Market.HK.name:
+            top_10 = top_10.join(sector_df, how='inner')
+            st.dataframe(top_10[['name','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+        else:
+            st.dataframe(top_10[['top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
 
 # Individual Stock Analysis Section
 st.header("Individual Stock Analysis")
@@ -445,16 +450,13 @@ else:
         with st.spinner(f"Fetching data for selected stocks..."):
             all_stock_data = {}
             # Download US market data using yfinance
-            if market_choice == 'US':
-                rs = download_yf_data(selected_tickers, start_date, today)
-                tickers = set(rs.columns.get_level_values(0))
-                for ticker in tickers:
-                    df = rs[ticker].reset_index()
-                    df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close', 'Volume':'volume'},inplace=True)
-                    all_stock_data[ticker] = df
+            if market_choice == Market.US.name:
+                for ticker in selected_tickers:
+                    all_stock_data[ticker] = download_alpaca_daily_data(ticker, start_date, today)
 
             # Download HK market data using futu
-            if market_choice == 'HK':
+            if market_choice == Market.HK.name:
+                all_stock_data['HSI (Hang Seng Index)'] = download_futu_historical_daily_data('HK.800000', start_date, today)
                 # rs = download_yf_data(['^HSI'], start_date, today)
                 # df = rs['^HSI'].reset_index()
                 # df.loc[len(df)-1,'Volume'] = df.iloc[-2]['Volume']
@@ -462,8 +464,6 @@ else:
                 # all_stock_data['HSI (Hang Sheng Index)'] = df
                 for i, ticker in enumerate(selected_tickers):
                     download_ticker = 'HK.0'+ticker
-                    # if market_choice == 'US':
-                    #     download_ticker = 'US.'+ticker
                     if i%60 == 0:
                         tick = time.time()
                     all_stock_data[ticker] = download_futu_historical_daily_data(download_ticker, start_date, today)
@@ -473,7 +473,7 @@ else:
         
         if all_stock_data:
             for stock in all_stock_data.keys():
-                st.subheader(f"Stock: {stock}")
+                st.subheader(f"Ticker: {stock}")
                 
                 df = all_stock_data.get(stock)
                 if df is None or df.empty:

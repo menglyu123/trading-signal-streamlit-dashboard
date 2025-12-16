@@ -5,6 +5,7 @@ import argparse
 import statsmodels.api as sm
 import pandas_ta as pta
 from sklearn.preprocessing import StandardScaler
+from data.import_data import Market
 
 def cal_rmse(s: np.ndarray, d=10, period=10):
     scaler = StandardScaler()
@@ -14,20 +15,64 @@ def cal_rmse(s: np.ndarray, d=10, period=10):
     rs = np.sqrt(np.mean((y[-period:] - poly_fit[-period:]) ** 2))
     return rs
 
+def get_pred_df(df, winlen):
+    try:
+        cdf = df.copy()
+        cdf['EMA_5'] = pta.ema(cdf.close, 5)
+        cdf['EMA_10'] = pta.ema(cdf.close, 10)
+        cdf['EMA_20'] = pta.ema(cdf.close, 20)
+        cdf['EMA_30'] = pta.ema(cdf.close, 30)
+        cdf['EMA_60'] = pta.ema(cdf.close, 60)
 
+        # Add uptrend
+        cdf['uptrend'] = (cdf.EMA_10> cdf.EMA_10.shift(1))&(cdf.EMA_20> cdf.EMA_20.shift(1))
+
+        # Add volatility by rmse based on polynomial fit
+        cdf['rmse_10'] = cdf.close.rolling(window=60).apply(cal_rmse, raw=True, kwargs={'d':10,'period':10})
+
+        # # Add just bullish alignment
+        # cdf['bullish'] = (cdf['EMA_5'] > cdf['EMA_10']) & (cdf['EMA_10'] > cdf['EMA_20'])
+        # cdf['turn_bullish'] = (cdf['bullish']) & ((~cdf['bullish']).shift(1))
+        # sel_close = cdf[cdf.turn_bullish]['close']
+        # cdf['just_bullish'] = 0
+        # id = sel_close[sel_close < sel_close.shift(1)].index
+        # cdf.loc[id,'just_bullish'] = 1
+        
+        # Add dist between average 10 and average 60
+        cdf['dist_avgs'] = abs(cdf.EMA_10/cdf.EMA_60-1)
+        cdf.set_index('date', inplace=True)
+
+        # Add prediction signals
+        model = TrendPredModel(winlen)
+        bdf = model.predict(df)
+        bdf = pd.concat([cdf, bdf], join='inner', axis=1)
+        bdf.reset_index(inplace=True)
+
+        # Add accel strength
+        bdf['accel'] = np.exp(bdf.prediction)
+        bdf['accel'] = bdf.accel.pct_change()
+        bdf.dropna(inplace=True)
+        if len(bdf) < 15:
+            print(f"{len(bdf)} samples is not enough. At least 15 samples required for bottom strength calculation")
+        bdf['last5_freq'] = bdf['accel'].rolling(5).apply(lambda x: sum(x>0)/len(x))
+        bdf['last10_freq'] = bdf['accel'].rolling(10).apply(lambda x: sum(x>0)/len(x))
+        bdf['last15_freq'] = bdf['accel'].rolling(15).apply(lambda x: sum(x>0)/len(x))
+        bdf['up_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1)
+        bdf['down_strength'] = (1-bdf[['last5_freq','last10_freq','last15_freq']]).max(axis=1)
+        bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
+    except:
+        bdf = pd.DataFrame()
+    return bdf
 
 class auto_trade():
     def __init__(self, market='HK'):
         self.market = market
         if self.market == 'HK':
-            with open('./data/code_pool_hk.txt','r') as fp:
-                self.code_list = [line.rstrip() for line in fp]
+            self.code_list = Market.HK.code_list()
         if self.market == 'US':
-            with open('./data/code_pool_us.txt','r') as fp:
-                self.code_list = [line.rstrip() for line in fp]
+            self.code_list = Market.US.code_list()
         if self.market == 'CRYPTO':
-            with open('./data/code_pool_crypto.txt','r') as fp:
-                self.code_list = [line.rstrip() for line in fp]
+            self.code_list = Market.CRYPTO.code_list()
         self.winlen = 120
          
     def backtest_single(self, df, init_balance=10000, fee=0.001, pct = 1):
@@ -122,52 +167,7 @@ class auto_trade():
 
         
     def add_signal_cols(self, df):
-        try:
-            cdf = df.copy()
-            cdf['EMA_5'] = pta.ema(cdf.close, 5)
-            cdf['EMA_10'] = pta.ema(cdf.close, 10)
-            cdf['EMA_20'] = pta.ema(cdf.close, 20)
-            cdf['EMA_30'] = pta.ema(cdf.close, 30)
-            cdf['EMA_60'] = pta.ema(cdf.close, 60)
-
-            # Add uptrend
-            cdf['uptrend'] = (cdf.EMA_10> cdf.EMA_10.shift(1))&(cdf.EMA_20> cdf.EMA_20.shift(1))
-
-            # Add volatility by rmse based on polynomial fit
-            cdf['rmse_10'] = cdf.close.rolling(window=60).apply(cal_rmse, raw=True, kwargs={'d':10,'period':10})
-
-            # # Add just bullish alignment
-            # cdf['bullish'] = (cdf['EMA_5'] > cdf['EMA_10']) & (cdf['EMA_10'] > cdf['EMA_20'])
-            # cdf['turn_bullish'] = (cdf['bullish']) & ((~cdf['bullish']).shift(1))
-            # sel_close = cdf[cdf.turn_bullish]['close']
-            # cdf['just_bullish'] = 0
-            # id = sel_close[sel_close < sel_close.shift(1)].index
-            # cdf.loc[id,'just_bullish'] = 1
-            
-            # Add dist between average 10 and average 60
-            cdf['dist_avgs'] = abs(cdf.EMA_10/cdf.EMA_60-1)
-            cdf.set_index('date', inplace=True)
-
-            # Add prediction signals
-            model = TrendPredModel(self.winlen)
-            bdf = model.predict(df)
-            bdf = pd.concat([cdf, bdf], join='inner', axis=1)
-            bdf.reset_index(inplace=True)
-
-            # Add accel strength
-            bdf['accel'] = np.exp(bdf.prediction)
-            bdf['accel'] = bdf.accel.pct_change()
-            bdf.dropna(inplace=True)
-            if len(bdf) < 15:
-                print(f"{len(bdf)} samples is not enough. At least 15 samples required for bottom strength calculation")
-            bdf['last5_freq'] = bdf['accel'].rolling(5).apply(lambda x: sum(x>0)/len(x))
-            bdf['last10_freq'] = bdf['accel'].rolling(10).apply(lambda x: sum(x>0)/len(x))
-            bdf['last15_freq'] = bdf['accel'].rolling(15).apply(lambda x: sum(x>0)/len(x))
-            bdf['btm_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1)
-            bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
-        except:
-            bdf = pd.DataFrame()
-        return bdf
+        return get_pred_df(df, self.winlen)
 
     def signal_pool(self, code_list, pred_df_list, date, save=False):
         fetched_code, close_list, pred_list, accel_list, btm_strength_list =[], [], [], [], []

@@ -1,19 +1,26 @@
 import tensorflow as tf 
 from keras import backend as K
 import random, numpy as np
-import yfinance as yf
 from sklearn.cluster import KMeans
 import pandas as pd
 import matplotlib.pyplot as plt
-from dataclasses import dataclass
+from enum import Enum
 
 from datetime import datetime, timedelta
-
 import time
 import requests
 
-@dataclass
-class AlpacaConfig:
+import alpaca_trade_api as tradeapi
+
+import mac_imessage
+
+def send_imessage(recipient, message):
+    try:
+        mac_imessage.send(message, recipient, medium='iMessage')
+    except Exception as e:
+        print(f"Error sending message: {e}")
+
+class AlpacaConfig(Enum):
     API_KEY = 'PKO1ARBTPTA3QL7M5BF3'
     API_SECRET = 'bvSSDPdWcQkTNgtO2Fxdbznf1a8tqylrfQCPKanA'
     HEADERS = {
@@ -23,8 +30,15 @@ class AlpacaConfig:
     BARS_URL = 'https://data.alpaca.markets/v2/stocks'  # v1/bars
    
 
+def get_price_from_alpaca(symbol, start: datetime, end: datetime, interval) -> pd.DataFrame:
+    api = tradeapi.REST(AlpacaConfig.API_KEY, AlpacaConfig.API_SECRET, base_url='https://paper-api.alpaca.markets')
+    bars = api.get_bars('AAPL', tradeapi.TimeFrame.Day, start).df
+    bars.reset_index(inplace=True)
+    bars.rename(columns={"timestamp":"date"},inplace=True)
+    bars['date']= bars.date.dt.date
+    return bars[['date','open','high','low','close','volume']]
 
-def get_price_from_alpaca(symbol, start:datetime, end:datetime, interval) -> list[dict]:
+def get_price_from_alpaca_requests(symbol, start:datetime, end:datetime, interval) -> list[dict]:
     config = AlpacaConfig()
     url = config.BARS_URL + '/bars'
     params = {"end": end} #int(end.timestamp() * 1000)
@@ -32,12 +46,8 @@ def get_price_from_alpaca(symbol, start:datetime, end:datetime, interval) -> lis
     params["timeframe"] = interval
     params["start"] = start#int(start.timestamp() * 1000)
     params["limit"] = 1000
-
     response: list[list] = requests.get(url, params=params, headers=config.HEADERS).json()
-    # url = config.BARS_URL+'/1Day?symbols=MSFT'
-    # print(url)
-    # response = requests.get(url, headers = config.HEADERS)
-    print(response['bars'])
+    return response
     
 
 
@@ -481,112 +491,110 @@ def send_email(body, img_path):
 
 
 
-
-
-def simulate(self, init_balance=10000, pct=0.1, fee=0.002):
-        today = datetime.date.today()
+# def simulate(self, init_balance=10000, pct=0.1, fee=0.002):
+#         today = datetime.date.today()
         
-        ## load the latest record
-        with open('trade_record.json', 'r') as f:
-            trade_record = json.load(f)
+#         ## load the latest record
+#         with open('trade_record.json', 'r') as f:
+#             trade_record = json.load(f)
         
-        last_record = trade_record['daily_portfolio'][-1]
-        new_daily_portfolio = copy.deepcopy(last_record)
-        portfolio_assets = list(last_record.keys())
-        last_remain_amt = trade_record['portfolio_remain_amount'][-1]
+#         last_record = trade_record['daily_portfolio'][-1]
+#         new_daily_portfolio = copy.deepcopy(last_record)
+#         portfolio_assets = list(last_record.keys())
+#         last_remain_amt = trade_record['portfolio_remain_amount'][-1]
 
         
-        # Rank candidate stocks not in the portfolio  -- rank the pool by signal today
-        signal_df = self.realtime_predict(self.code_list)
-        candidate_assets= signal_df[~signal_df.index.isin(portfolio_assets)]
-        tmp = candidate_assets[(candidate_assets.pred>0)&candidate_assets.up_trend&candidate_assets.down_deep&candidate_assets.price_up].sort_values(by=['pred'], ascending=False)
-        candidate_assets = tmp.index.to_list()
-        print(tmp.head())
-        print('Candidate stocks:', candidate_assets)
-        num_candidates = len(candidate_assets)
+#         # Rank candidate stocks not in the portfolio  -- rank the pool by signal today
+#         signal_df = self.realtime_predict(self.code_list)
+#         candidate_assets= signal_df[~signal_df.index.isin(portfolio_assets)]
+#         tmp = candidate_assets[(candidate_assets.pred>0)&candidate_assets.up_trend&candidate_assets.down_deep&candidate_assets.price_up].sort_values(by=['pred'], ascending=False)
+#         candidate_assets = tmp.index.to_list()
+#         print(tmp.head())
+#         print('Candidate stocks:', candidate_assets)
+#         num_candidates = len(candidate_assets)
 
-        if portfolio_assets != []:
-            ## SELL if have sigal
-            assets_signal = signal_df.loc[portfolio_assets]['pred']
-            sell_assets = assets_signal[assets_signal<0].index.to_list()
-            quota = len(sell_assets)
-            if quota > 0:
-                release_amt = 0
-                for asset in sell_assets:
-                    portfolio_assets.remove(asset)
-                    release_amt += last_record[asset]['balance']
-        else:
-            release_amt = 0
-            quota = self.portfolio_size
+#         if portfolio_assets != []:
+#             ## SELL if have sigal
+#             assets_signal = signal_df.loc[portfolio_assets]['pred']
+#             sell_assets = assets_signal[assets_signal<0].index.to_list()
+#             quota = len(sell_assets)
+#             if quota > 0:
+#                 release_amt = 0
+#                 for asset in sell_assets:
+#                     portfolio_assets.remove(asset)
+#                     release_amt += last_record[asset]['balance']
+#         else:
+#             release_amt = 0
+#             quota = self.portfolio_size
         
-        ## BUY 'quota' num of candidate assets using amount of res_amt unit
-        if quota > 0:   
-            buy_quota = min(quota, num_candidates)
-            buy_assets = candidate_assets[:buy_quota]
-            portfolio_assets.extend(buy_assets)
-            for asset in buy_assets:
-                new_daily_portfolio[asset] = {}
-                new_daily_portfolio[asset]['balance'] = (last_remain_amt + release_amt)/buy_quota
+#         ## BUY 'quota' num of candidate assets using amount of res_amt unit
+#         if quota > 0:   
+#             buy_quota = min(quota, num_candidates)
+#             buy_assets = candidate_assets[:buy_quota]
+#             portfolio_assets.extend(buy_assets)
+#             for asset in buy_assets:
+#                 new_daily_portfolio[asset] = {}
+#                 new_daily_portfolio[asset]['balance'] = (last_remain_amt + release_amt)/buy_quota
          
-        ## Update record
-        current_portfolio_balance = 0
-        current_portfolio_remain_amt = 0
+#         ## Update record
+#         current_portfolio_balance = 0
+#         current_portfolio_remain_amt = 0
 
-        for asset in portfolio_assets:
-            price = yf.download(asset+'.HK', start= str(today)) 
-            print('today:',today)
-            close = price.Close.values[-1]
+#         for asset in portfolio_assets:
+#             price = yf.download(asset+'.HK', start= str(today)) 
+#             print('today:',today)
+#             close = price.Close.values[-1]
             
-            if asset not in last_record.keys():  # for new stocks added to the portfolio
-                in_amt = pct*new_daily_portfolio[asset]['balance']
-                remain_amt = (1-pct)*new_daily_portfolio[asset]['balance']
-                balance=  in_amt*(1-fee) + remain_amt    #new_record[asset]['balance'] 
-                start_in_amt = in_amt
-                max_in_amt = in_amt
-                status = 'buy'
-            else:   # hold case
-                # read last record
-                in_amt = last_record[asset]['in_amt']
-                start_in_amt = last_record[asset]['start_in_amt']
-                max_in_amt = last_record[asset]['max_in_amt']
-                remain_amt = last_record[asset]['remain_amt']
-                status = last_record[asset]['status']
+#             if asset not in last_record.keys():  # for new stocks added to the portfolio
+#                 in_amt = pct*new_daily_portfolio[asset]['balance']
+#                 remain_amt = (1-pct)*new_daily_portfolio[asset]['balance']
+#                 balance=  in_amt*(1-fee) + remain_amt    #new_record[asset]['balance'] 
+#                 start_in_amt = in_amt
+#                 max_in_amt = in_amt
+#                 status = 'buy'
+#             else:   # hold case
+#                 # read last record
+#                 in_amt = last_record[asset]['in_amt']
+#                 start_in_amt = last_record[asset]['start_in_amt']
+#                 max_in_amt = last_record[asset]['max_in_amt']
+#                 remain_amt = last_record[asset]['remain_amt']
+#                 status = last_record[asset]['status']
                 
-                # update record
-                in_amt *= close/last_record[asset]['close']
-                if (in_amt > start_in_amt*(1+0.02)) & (remain_amt>0):  # add pos
-                    in_amt += remain_amt
-                    remain_amt -= remain_amt
-                    status = 'add'
-                    start_in_amt = in_amt               
-                if in_amt > max_in_amt:
-                    max_in_amt = in_amt
-                elif (in_amt < max(max_in_amt*(1- 0.05), start_in_amt*0.98)) & (in_amt>0):  ## max_in_amt*(1- 0.1))|lose_later) reduce pos when price down or take profit |lose_later
-                    sell_amt = 0.5*in_amt
-                    in_amt -= sell_amt
-                    remain_amt += sell_amt
-                    start_in_amt = in_amt
-                    max_in_amt = in_amt
-                    status = 'cut'
-                balance = in_amt+ remain_amt  
+#                 # update record
+#                 in_amt *= close/last_record[asset]['close']
+#                 if (in_amt > start_in_amt*(1+0.02)) & (remain_amt>0):  # add pos
+#                     in_amt += remain_amt
+#                     remain_amt -= remain_amt
+#                     status = 'add'
+#                     start_in_amt = in_amt               
+#                 if in_amt > max_in_amt:
+#                     max_in_amt = in_amt
+#                 elif (in_amt < max(max_in_amt*(1- 0.05), start_in_amt*0.98)) & (in_amt>0):  ## max_in_amt*(1- 0.1))|lose_later) reduce pos when price down or take profit |lose_later
+#                     sell_amt = 0.5*in_amt
+#                     in_amt -= sell_amt
+#                     remain_amt += sell_amt
+#                     start_in_amt = in_amt
+#                     max_in_amt = in_amt
+#                     status = 'cut'
+#                 balance = in_amt+ remain_amt  
             
-            new_daily_portfolio[asset]['balance'] = balance
-            new_daily_portfolio[asset]['in_amt'] = in_amt
-            new_daily_portfolio[asset]['start_in_amt'] = start_in_amt
-            new_daily_portfolio[asset]['max_in_amt'] = max_in_amt
-            new_daily_portfolio[asset]['remain_amt'] = remain_amt
-            new_daily_portfolio[asset]['status'] = status
-            new_daily_portfolio[asset]['close'] = close
+#             new_daily_portfolio[asset]['balance'] = balance
+#             new_daily_portfolio[asset]['in_amt'] = in_amt
+#             new_daily_portfolio[asset]['start_in_amt'] = start_in_amt
+#             new_daily_portfolio[asset]['max_in_amt'] = max_in_amt
+#             new_daily_portfolio[asset]['remain_amt'] = remain_amt
+#             new_daily_portfolio[asset]['status'] = status
+#             new_daily_portfolio[asset]['close'] = close
             
-            current_portfolio_balance += balance
-            current_portfolio_remain_amt += remain_amt
+#             current_portfolio_balance += balance
+#             current_portfolio_remain_amt += remain_amt
 
-        ## Append to record   
-        trade_record['date'].append(today.strftime('%Y-%m-%d %H:%m'))
-        trade_record['daily_portfolio'].append(new_daily_portfolio)
-        trade_record['portfolio_balance'].append(current_portfolio_balance)  
-        trade_record['portfolio_remain_amount'].append(current_portfolio_remain_amt)
+#         ## Append to record   
+#         trade_record['date'].append(today.strftime('%Y-%m-%d %H:%m'))
+#         trade_record['daily_portfolio'].append(new_daily_portfolio)
+#         trade_record['portfolio_balance'].append(current_portfolio_balance)  
+#         trade_record['portfolio_remain_amount'].append(current_portfolio_remain_amt)
        
-        with open('trade_record.json', 'w') as f:
-            json.dump(trade_record, f)
-        return
+#         with open('trade_record.json', 'w') as f:
+#             json.dump(trade_record, f)
+#         return

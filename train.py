@@ -1,5 +1,5 @@
 import datetime as dt
-from data.import_data import HK_CODE_LIST, download_futu_historical_daily_data
+from data.import_data import Market, download_futu_historical_daily_data
 from model.trend_pred_model import TrendPredModel
 import time
 
@@ -8,7 +8,7 @@ if __name__ == '__main__':
     data_path = './data/HK_stocks/daily'
     end = dt.datetime.today().date()
     start = end - dt.timedelta(days=365*5)
-    for i, ticker in enumerate(HK_CODE_LIST):
+    for i, ticker in enumerate(Market.HK.code_list()):
         ticker = 'HK.0'+ticker
         if i%60 == 0:
             tick = time.time()
