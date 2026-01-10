@@ -11,6 +11,39 @@ import io, time
 import numpy as np
 from data.import_data import Market, get_sector, download_futu_historical_daily_data, download_alpaca_daily_data
 
+WATCHLIST_DIR =  "./data"
+
+
+def get_watchlist_path(market: str) -> str:
+    """
+    Build a market-specific watchlist path (e.g., watchlist_hk.txt).
+    """
+    filename = f"watchlist_{market.lower()}.txt"
+    return os.path.join(WATCHLIST_DIR, filename)
+
+
+def load_watchlist(market: str):
+    """
+    Load watchlist tickers for a market. Returns (list, path).
+    """
+    path = get_watchlist_path(market)
+    if not os.path.exists(path):
+        return [], path
+    with open(path, "r") as fh:
+        tickers = [line.strip() for line in fh.readlines() if line.strip()]
+    return tickers, path
+
+
+def save_watchlist(market: str, tickers):
+    """
+    Persist watchlist tickers to disk and return the path.
+    """
+    path = get_watchlist_path(market)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        fh.write("\n".join(tickers))
+    return path
+
 
 def get_last_n_trading_days_predictions(n, trader, from_date=None):
     """
@@ -73,6 +106,7 @@ def plot_single(code, bdf):
     """
     plt.figure(figsize=(10,4))
     plt.plot(bdf.date, bdf.close, label='Close')
+    plt.plot(bdf.date, bdf.EMA_5, label='EMA_5')
     plt.plot(bdf.date, bdf.EMA_10, label='EMA_10')
     plt.plot(bdf.date, bdf.EMA_20, label='EMA_20')
     plt.plot(bdf.date, bdf.EMA_60, label='EMA_60')
@@ -330,6 +364,95 @@ if 'dates_list' not in st.session_state:
 
 st.title(f"{market_choice} Stock Market Predictions Dashboard")
 
+
+# Watchlist Section
+st.header("Stocks in My Watch List")
+watchlist, watchlist_path = load_watchlist(market_choice)
+col_watch_plots, col_watch_manage = st.columns([3, 1])
+
+with col_watch_manage:
+    st.subheader("Manage Watch List")
+    st.caption(f"Stored in {watchlist_path}")
+
+    if watchlist:
+        st.write("Current watch list: " + ", ".join(watchlist))
+    else:
+        st.info("No stocks in watch list yet.")
+
+    stock_code = st.text_input(
+        "Stock code",
+        key="watch_code_input",
+        placeholder="e.g., AAPL or 0700",
+    )
+    col_add, col_del = st.columns(2)
+    with col_add:
+        if st.button("Add", key="watch_add_button"):
+            code = stock_code.strip().upper()
+            if not code:
+                st.warning("Please enter a stock code to add.")
+            elif code in watchlist:
+                st.info(f"{code} is already in the watch list.")
+            else:
+                watchlist.append(code)
+                save_watchlist(market_choice, watchlist)
+                st.success(f"Added {code} to the watch list.")
+    with col_del:
+        if st.button("Delete", key="watch_delete_button"):
+            code = stock_code.strip().upper()
+            if not code:
+                st.warning("Please enter a stock code to delete.")
+            elif code in watchlist:
+                watchlist = [c for c in watchlist if c != code]
+                save_watchlist(market_choice, watchlist)
+                st.success(f"Deleted {code} from the watch list.")
+            else:
+                st.warning(f"{code} is not in the watch list.")
+
+with col_watch_plots:
+    st.subheader("Predictions for Watch List")
+    if not watchlist:
+        st.info("Add stocks to the watch list to see their backtests.")
+    else:
+        watch_days = st.slider(
+            "Window (days)",
+            min_value=60,
+            max_value=500,
+            value=200,
+            step=10,
+            key="watch_backtest_days"
+        )
+        today = dt.date.today()
+        start_date = today - dt.timedelta(days=trader.winlen+60+20+watch_days)
+
+        with st.spinner("Running backtests for watch list..."):
+            tick = time.time()
+            for i, ticker in enumerate(watchlist):
+                st.markdown(f"**{ticker}**")
+                if market_choice == Market.US.name:
+                    df = download_alpaca_daily_data(ticker, start_date, today)
+                else:
+                    download_ticker = ticker if ticker.startswith("HK.") else f"HK.0{ticker}"
+                    if i % 60 == 0:
+                        tick = time.time()
+                    df = download_futu_historical_daily_data(download_ticker, start_date, today)
+                    time_cost = time.time()-tick
+                    if ((i+1) % 60 == 0) and (time_cost <= 30):
+                        time.sleep(31 - time_cost)
+
+                if df is None or df.empty:
+                    st.warning(f"Could not fetch data for {ticker}.")
+                    continue
+
+                result_df = trader.backtest_single(df)
+                if result_df is None:
+                    st.warning(f"Failed to run backtest for {ticker}.")
+                    continue
+
+                plot_buf = plot_single(ticker, result_df)
+                st.image(plot_buf)
+
+
+
 # Market Predictions Section
 st.header("Market-wide Predictions")
 
@@ -389,7 +512,6 @@ else:
 if st.session_state.predictions_df is not None:
     col1, col2 = st.columns([1,1])
     tmp_df = st.session_state.predictions_df.copy()
-    print(tmp_df.columns)
     if market_choice == Market.HK.name:
         sector_df = get_sector(Market(market_choice).code_list())
         sector_df.set_index('code', inplace=True)
@@ -400,7 +522,7 @@ if st.session_state.predictions_df is not None:
         top_10 = tmp_df.sort_values(['bottom_strength','dist_avgs'], ascending=[False, True]).head(10)
         if market_choice == Market.HK.name:
             top_10 = top_10.join(sector_df, how='inner')
-            st.dataframe(top_10[['name','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+            st.dataframe(top_10[['name','sector','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
         else:
             st.dataframe(top_10[['bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
     with col2:
@@ -410,9 +532,10 @@ if st.session_state.predictions_df is not None:
         top_10 = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, True]).head(10)
         if market_choice == Market.HK.name:
             top_10 = top_10.join(sector_df, how='inner')
-            st.dataframe(top_10[['name','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+            st.dataframe(top_10[['name','sector','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
         else:
             st.dataframe(top_10[['top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+
 
 # Individual Stock Analysis Section
 st.header("Individual Stock Analysis")
@@ -451,6 +574,8 @@ else:
             all_stock_data = {}
             # Download US market data using yfinance
             if market_choice == Market.US.name:
+                all_stock_data['SPY'] = download_alpaca_daily_data('SPY', start_date, today)
+                all_stock_data['DIA'] = download_alpaca_daily_data('DIA', start_date, today)
                 for ticker in selected_tickers:
                     all_stock_data[ticker] = download_alpaca_daily_data(ticker, start_date, today)
 

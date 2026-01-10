@@ -41,7 +41,7 @@ def get_current_futu_portfolio(): # for real trading
     if ret == RET_OK:
         if positions_df.shape[0] > 0:  # If the position list is not empty
             portfolio_comp_df = positions_df[['code','stock_name','position_market','qty','cost_price','nominal_price']]
-            portfolio_comp_df.rename(columns = {'nominal_price': 'current_price'})
+            portfolio_comp_df.rename(columns = {'nominal_price': 'current_price'}, inplace=True)
     else:
         print('position_list_query error: ', positions_df)
     
@@ -51,14 +51,6 @@ def get_current_futu_portfolio(): # for real trading
         for code in portfolio_comp_df.code:
             name = portfolio_comp_df[portfolio_comp_df.code==code]['stock_name'].values[0]
             print(f'analyze {name}')
-            # if portfolio_comp_df[portfolio_comp_df.code==code]['position_market'].values[0]=='US':
-            #     current_drawdown_list.append(None)
-            #     pred_list.append(None)
-            #     dist_mvg5_list.append(None)
-            #     dist_mvg10_list.append(None)
-            #     dist_mvg20_list.append(None)
-            #     dist_mvg60_list.append(None)
-            #     continue
             last_trade_time = history_order[(history_order.code==code)&(history_order.order_status=='FILLED_ALL')].iloc[0]['create_time']
             last_trade_date = dt.datetime.strptime(last_trade_time, '%Y-%m-%d %H:%M:%S.%f').date()
             current_date = dt.datetime.today().date()
@@ -68,7 +60,7 @@ def get_current_futu_portfolio(): # for real trading
             if portfolio_comp_df[portfolio_comp_df.code==code]['position_market'].values[0]=='US':
                 df = download_alpaca_daily_data(code.split('.')[-1], start_date, current_date)
             hold_highest_price = df[(df.date>=last_trade_date)&(df.date<=current_date)].close.max()
-            current_drawdown = max(1-portfolio_comp_df[portfolio_comp_df.code==code]['nominal_price'].values[0]/hold_highest_price,0)
+            current_drawdown = max(1-portfolio_comp_df[portfolio_comp_df.code==code]['current_price'].values[0]/hold_highest_price,0)
             current_drawdown_list.append(current_drawdown)
 
             pred_df = get_pred_df(df, 120)
@@ -90,7 +82,43 @@ def get_current_futu_portfolio(): # for real trading
     trd_ctx.close()
     return portfolio_comp_df
 
-def send_alert(): # for real trading
+
+def send_portfolio_alert():
+    now = dt.datetime.now().time()
+    start_time = dt.time(9, 30)
+    end_time = dt.time(16, 0)
+
+    if start_time <= now <= end_time:
+        trd_ctx = OpenSecTradeContext(filter_trdmarket=TrdMarket.HK, host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
+        ret, positions_df = trd_ctx.position_list_query()
+        if ret == RET_OK:
+            if positions_df.shape[0] > 0:  # If the position list is not empty
+                portfolio_comp_df = positions_df[['code','stock_name','position_market','qty','cost_price','nominal_price']]
+                portfolio_comp_df.rename(columns = {'nominal_price': 'current_price'}, inplace=True)
+        else:
+            print('position_list_query error: ', positions_df)
+        
+        ret, history_order = trd_ctx.history_order_list_query()
+        if ret == RET_OK:
+            for code in portfolio_comp_df.code:
+                name = portfolio_comp_df[portfolio_comp_df.code==code]['stock_name'].values[0]
+                last_trade_time = history_order[(history_order.code==code)&(history_order.order_status=='FILLED_ALL')].iloc[0]['create_time']
+                last_trade_date = dt.datetime.strptime(last_trade_time, '%Y-%m-%d %H:%M:%S.%f').date()
+                current_date = dt.datetime.today().date()
+                if portfolio_comp_df[portfolio_comp_df.code==code]['position_market'].values[0]=='HK':
+                    df = download_futu_historical_daily_data(code, last_trade_date, current_date)
+                if portfolio_comp_df[portfolio_comp_df.code==code]['position_market'].values[0]=='US':
+                    df = download_alpaca_daily_data(code.split('.')[-1], last_trade_date, current_date)
+                hold_highest_price = df[(df.date>=last_trade_date)&(df.date<=current_date)].close.max()
+                current_drawdown = max(1-portfolio_comp_df[portfolio_comp_df.code==code]['current_price'].values[0]/hold_highest_price,0)
+                if current_drawdown >=0.02:
+                    send_imessage('85269926347', f"{str(dt.datetime.now().replace(microsecond=0))}-{code}: {name} drop {round(current_drawdown, 2)*100}%")
+        trd_ctx.close()
+    return
+
+
+
+def send_portfolio_pred(): # for real trading
     ## current_drawdown >0.03 or pred <0
     df = get_current_futu_portfolio()
     msg = f'Date: {dt.datetime.today().date()}\n'
@@ -104,13 +132,17 @@ def send_alert(): # for real trading
     send_imessage('85269926347', msg)
 
 if __name__ == '__main__':
-    #get_current_futu_portfolio()
-    
     # Schedule send alert
-    schedule.every().day.at("15:50").do(send_alert)
+    schedule.every(5).minutes.do(send_portfolio_alert)
     while True:
         schedule.run_pending()
         time.sleep(1)
+    
+    # # Schedule send predictions for a portfolio
+    # schedule.every().day.at("15:50").do(send_portfolio_pred)
+    # while True:
+    #     schedule.run_pending()
+    #     time.sleep(1)
 
 
 
