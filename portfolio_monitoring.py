@@ -7,6 +7,7 @@ from auto_trade import get_pred_df
 from util import send_imessage
 import schedule
 import time
+from model.trend_pred_model import TrendPredModel
 
 @dataclass
 class Component:  
@@ -112,7 +113,16 @@ def send_portfolio_alert():
                 hold_highest_price = df[(df.date>=last_trade_date)&(df.date<=current_date)].close.max()
                 current_drawdown = max(1-portfolio_comp_df[portfolio_comp_df.code==code]['current_price'].values[0]/hold_highest_price,0)
                 if current_drawdown >=0.02:
-                    send_imessage('85269926347', f"{str(dt.datetime.now().replace(microsecond=0))}-{code}: {name} drop {round(current_drawdown, 2)*100}%")
+                    # calculate current prediction
+                    start_date = current_date-dt.timedelta(days=120+60+90+40+1)
+                    if portfolio_comp_df[portfolio_comp_df.code==code]['position_market'].values[0]=='HK':
+                        df = download_futu_historical_daily_data(code, start_date, current_date)
+                    if portfolio_comp_df[portfolio_comp_df.code==code]['position_market'].values[0]=='US':
+                        df = download_alpaca_daily_data(code.split('.')[-1], start_date, current_date)
+                    model = TrendPredModel(120)
+                    bdf = model.predict(df)
+                    # send alert message
+                    send_imessage('85269926347', f"{str(dt.datetime.now().replace(microsecond=0))}-{code}: {name} drop {round(current_drawdown, 2)*100}% with current prediction {round(bdf.iloc[-1]['prediction'],2)}")
         trd_ctx.close()
     return
 
