@@ -205,7 +205,14 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
     if predictions_df is None or predictions_df.empty:
         return None
     try:
-        sector_df = get_sector(Market(market).code_list())
+        if market == Market.HK.name:
+            sector_code_list = ['HK.0'+code for code in Market(market).code_list()]
+            sector_df = get_sector(sector_code_list)
+            sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1][1:])
+        if market == Market.US.name:
+            sector_code_list = ['US.'+code for code in Market(market).code_list()]
+            sector_df = get_sector(sector_code_list)
+            sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1])
         if sector_df is None or sector_df.empty:
             return None
         
@@ -478,15 +485,13 @@ with col1:
                     predictions_list,
                     dates_list
                 )
-                # Update the sector chart if market is HK
-                if market_choice == Market.HK.name:
-                    st.session_state.sector_chart = build_sector_distribution_three_days(
-                            st.session_state.predictions_df,
-                            st.session_state.predictions_df_yesterday,
-                            st.session_state.predictions_df_2days_ago,
-                            st.session_state.dates_list,
-                            market_choice
-                        )
+                st.session_state.sector_chart = build_sector_distribution_three_days(
+                        st.session_state.predictions_df,
+                        st.session_state.predictions_df_yesterday,
+                        st.session_state.predictions_df_2days_ago,
+                        st.session_state.dates_list,
+                        market_choice
+                    )
             else:
                 st.error("Could not fetch predictions for all three trading days. Please try again later.")
                
@@ -501,40 +506,42 @@ with col2:
 if st.session_state.histogram_image is not None:
     st.image(st.session_state.histogram_image)
 
-# Display sector charts only for HK market
-if market_choice == Market.HK.name:
-    if st.session_state.sector_chart is not None:
-        st.image(st.session_state.sector_chart)
-else:
-    st.info("US stock sector info is not available.")
+# Display sector charts
+if st.session_state.sector_chart is not None:
+    st.image(st.session_state.sector_chart)
 
 # Display top 10 bullish tickers
 if st.session_state.predictions_df is not None:
     col1, col2 = st.columns([1,1])
     tmp_df = st.session_state.predictions_df.copy()
     if market_choice == Market.HK.name:
-        sector_df = get_sector(Market(market_choice).code_list())
-        sector_df.set_index('code', inplace=True)
+        sector_code_list = ['HK.0'+code for code in Market(market_choice).code_list()]
+        sector_df = get_sector(sector_code_list)
+        sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1][1:])
+    if market_choice == Market.US.name:
+        sector_code_list = ['US.'+code for code in Market(market_choice).code_list()]
+        sector_df = get_sector(sector_code_list)
+        sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1])
+    sector_df.set_index('code', inplace=True)
 
     with col1:
         st.subheader("Top 10 Bullish Predictions")
         tmp_df['bottom_strength'] = tmp_df['up_strength']*tmp_df.uptrend.astype(int)
         top_10 = tmp_df.sort_values(['bottom_strength','dist_avgs'], ascending=[False, True]).head(10)
-        if market_choice == Market.HK.name:
-            top_10 = top_10.join(sector_df, how='inner')
-            st.dataframe(top_10[['name','sector','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
-        else:
-            st.dataframe(top_10[['bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+        top_10.reset_index(inplace=True)
+        top_10 = top_10.join(sector_df, on='code', how='left')
+        top_10.set_index('code', inplace=True)
+        st.dataframe(top_10[['name','sector','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
     with col2:
         st.subheader("Top 10 Bearish Predictions")
         tmp_df1 = st.session_state.predictions_df.copy()
         tmp_df1['top_collapse'] = tmp_df1['down_strength']*(1-tmp_df1.uptrend.astype(int))
         top_10 = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, True]).head(10)
-        if market_choice == Market.HK.name:
-            top_10 = top_10.join(sector_df, how='inner')
-            st.dataframe(top_10[['name','sector','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
-        else:
-            st.dataframe(top_10[['top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+        top_10.reset_index(inplace=True)
+        top_10 = top_10.join(sector_df, on='code',how='left')
+        top_10.set_index('code', inplace=True)
+        st.dataframe(top_10[['name','sector','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+
 
 
 # Individual Stock Analysis Section

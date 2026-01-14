@@ -57,8 +57,8 @@ def get_pred_df(df, winlen):
         bdf['last5_freq'] = bdf['accel'].rolling(5).apply(lambda x: sum(x>0)/len(x))
         bdf['last10_freq'] = bdf['accel'].rolling(10).apply(lambda x: sum(x>0)/len(x))
         bdf['last15_freq'] = bdf['accel'].rolling(15).apply(lambda x: sum(x>0)/len(x))
-        bdf['up_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1)
-        bdf['down_strength'] = (1-bdf[['last5_freq','last10_freq','last15_freq']]).max(axis=1)
+        bdf['up_strength'] = round(bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1),2)
+        bdf['down_strength'] = round((1-bdf[['last5_freq','last10_freq','last15_freq']]).max(axis=1),2)
         bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
     except:
         bdf = pd.DataFrame()

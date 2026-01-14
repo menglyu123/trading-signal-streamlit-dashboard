@@ -45,7 +45,6 @@ class Market(Enum):
 
 
 def get_sector(code_list):
-    code_list = ['HK.0'+code for code in code_list]
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     ret, data = quote_ctx.get_owner_plate(code_list)
     if ret != RET_OK:
@@ -54,7 +53,6 @@ def get_sector(code_list):
     sector_mapping = pd.read_csv("./data/sector_mapping.csv")
     df = data.set_index('plate_type').loc['INDUSTRY']
     sector_df = df.merge(sector_mapping, on='plate_name', how='inner')
-    sector_df['code'] = sector_df.code.apply(lambda x: x[4:])
     return sector_df[['code','name','sector']]
 
 # def download_yf_data(code_list, start_date=None, end_date=None):
