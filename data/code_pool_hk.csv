@@ -1,0 +1,219 @@
+code,name,market_cap,sector
+0016,新鸿基地产,323102500551.0,Real Estate
+1109,华润置地,204372728334.14,Real Estate
+1113,长实集团,150350477185.68,Real Estate
+0012,恒基地产,149598858392.7,Real Estate
+0688,中国海外发展,144472462662.0,Real Estate
+0083,信和置业,107364476981.56,Real Estate
+0004,九龙仓集团,72794570929.14,Real Estate
+0960,龙湖集团,67247577883.6,Real Estate
+0247,TST PROPERTIES,44859692992.2,Real Estate
+2202,万科企业,41518868959.08,Real Estate
+1908,建发国际集团,31944597922.32,Real Estate
+0683,嘉里建设,31493334297.6,Real Estate
+0017,新世界发展,28916115134.79,Real Estate
+0053,国浩集团,22819712717.55,Real Estate
+3900,绿城中国,22551636367.2,Real Estate
+0817,中国金茂,17971580242.84,Real Estate
+0123,越秀地产,16745634518.08,Real Estate
+1030,新城发展,15262001685.36,Real Estate
+1918,融创中国,14261364526.36,Real Estate
+0754,合生创展集团,11908577392.94,Real Estate
+0003,香港中华煤气,134351064705.6,Energy
+2688,新奥能源,77191437804.8,Energy
+0135,昆仑能源,65200776861.24,Energy
+0916,龙源电力,58769507632.92,Energy
+1193,华润燃气,50260359558.12,Energy
+0384,中国燃气,41351479304.19,Energy
+0392,北京控股,41212187059.68,Energy
+2380,中国电力,40079289184.92,Energy
+0257,光大环境,29486281401.6,Energy
+0579,京能清洁能源,18879923649.76,Energy
+0956,新天绿色能源,17328741400.32,Energy
+1798,大唐新能源,14765613030.0,Energy
+1083,港华智慧能源,12961066335.4,Energy
+1811,中广核新能源,11325399360.0,Energy
+1635,大众公用,9890656161.25,Energy
+3868,信义能源,9882866327.16,Energy
+3633,中裕能源,7805186645.88,Energy
+1250,山高新能源,4066325594.06,Energy
+0931,中国港能,3308876873.315,Energy
+1600,天伦燃气,2867104515.36,Energy
+9633,农夫山泉,557149945456.0,Consumer Staples
+2097,蜜雪集团,163387931520.0,Consumer Staples
+0288,万洲国际,111366305694.0,Consumer Staples
+1876,百威亚太,100782251170.0,Consumer Staples
+0291,华润啤酒,81299073239.3,Consumer Staples
+0168,青岛啤酒股份,67391238977.4,Consumer Staples
+0322,康师傅控股,66905449193.2,Consumer Staples
+1364,古茗,65257419998.4,Consumer Staples
+2319,蒙牛乳业,61713338981.83,Consumer Staples
+0151,中国旺旺,53703973664.25,Consumer Staples
+6186,中国飞鹤,34437968992.64,Consumer Staples
+0220,统一企业中国,34165931940.0,Consumer Staples
+9985,卫龙美味,31556269602.44,Consumer Staples
+6979,珍酒李渡,28295006642.5,Consumer Staples
+0142,第一太平,25530098973.71,Consumer Staples
+2648,安井食品,25113321026.2,Consumer Staples
+2460,华润饮料,24725406946.0,Consumer Staples
+9858,优然牧业,17089075186.87,Consumer Staples
+1117,现代牧业,12190119553.92,Consumer Staples
+0506,中国食品,11636449327.36,Consumer Staples
+0002,中电控股,183546633910.5,Utilities
+1038,长江基建集团,149538909585.75,Utilities
+0006,电能实业,119768109654.8,Utilities
+0836,华润电力,93549433361.8,Utilities
+0902,华能国际电力股份,92618750818.1,Utilities
+2638,港灯-SS,57700386000.0,Utilities
+1071,华电国际电力股份,48188862863.6,Utilities
+0991,大唐发电,45526507839.84,Utilities
+0270,粤海投资,44980211507.2,Utilities
+0371,北控水务集团,25317456874.92,Utilities
+0855,中国水务,8767979544.94,Utilities
+1065,天津创业环保股份,6501530871.9,Utilities
+1857,中国光大水务,4434358920.65,Utilities
+0807,上海实业环境,2807475641.34,Utilities
+1713,四川能投发展,2599945634.0,Utilities
+6136,康达环保,1153504250.0,Utilities
+1608,伟能集团,908908471.264,Utilities
+3768,滇池水务,761542140.0,Utilities
+2281,兴泸水务,618991200.0,Utilities
+1790,达力环保,560000000.0,Utilities
+1398,工商银行,2270307857656.93,Financials
+0005,汇丰控股,2179537938487.8,Financials
+0939,建设银行,2037866971565.61,Financials
+1288,农业银行,1903907704269.12,Financials
+3988,中国银行,1449955853163.0,Financials
+2318,中国平安,1238562712458.0,Financials
+3968,招商银行,1178775583390.74,Financials
+2628,中国人寿,904470560000.0,Financials
+1299,友邦保险,869947920471.6,Financials
+1658,邮储银行,606480020134.6,Financials
+3328,交通银行,581433700187.34,Financials
+0388,香港交易所,546184134366.0,Financials
+0945,宏利金融-S,484705216520.0,Financials
+2888,渣打集团,441781896052.0,Financials
+2388,中银香港,421642477008.08,Financials
+0998,中信银行,395637103697.04,Financials
+2601,中国太保,367304636751.9,Financials
+2328,中国财险,356329100154.06,Financials
+2378,保诚,310644821904.0,Financials
+1339,中国人民保险集团,295858497000.27,Financials
+0267,中信股份,348501346307.4,Industrials
+0001,长和,230377176675.0,Industrials
+1919,中远海控,203909031177.28,Industrials
+0066,港铁公司,194587972325.46,Industrials
+6936,顺丰控股,182225803589.44,Industrials
+2050,三花智控,160830292595.7,Industrials
+2057,中通快递-W,136317223128.9,Industrials
+0670,中国东方航空股份,126120976385.7,Industrials
+0753,中国国航,124407241730.0,Industrials
+1055,中国南方航空股份,106732230786.15,Industrials
+1519,极兔速递-W,100101659681.25,Industrials
+0293,国泰航空,82556677955.08,Industrials
+0316,东方海外国际,79707056947.9,Industrials
+2618,京东物流,75288201841.32,Industrials
+1138,中远海能,70774609865.05,Industrials
+1308,海丰国际,70523686977.92,Industrials
+0144,招商局港口,62466376687.68,Industrials
+2588,中银航空租赁,56561842221.0,Industrials
+0019,太古股份公司A,55892389000.0,Industrials
+6198,青岛港,46995564000.0,Industrials
+0700,腾讯控股,5564958706250.0,Technology
+1810,小米集团-W,951291785256.56,Technology
+0981,中芯国际,618034229320.5,Technology
+9888,百度集团-SW,404274573696.0,Technology
+1024,快手-W,333929707785.8,Technology
+3986,兆易创新,202201246820.2,Technology
+1347,华虹半导体,178105454782.5,Technology
+6613,蓝思科技,155993350486.32,Technology
+0501,豪威集团,145924658129.6,Technology
+9660,地平线机器人-W,137581200009.15,Technology
+0100,MINIMAX-WP,119181417040.0,Technology
+0992,联想集团,110649560973.84,Technology
+9626,哔哩哔哩-W,100030008614.4,Technology
+2513,智谱,98083286332.0,Technology
+0020,商汤-W,97826171960.0,Technology
+6082,壁仞科技,91867689378.0,Technology
+0285,比亚迪电子,77555298890.0,Technology
+9880,优必选,72590477986.6,Technology
+2382,舜宇光学科技,70542195780.0,Technology
+6969,思摩尔国际,65659086262.6,Technology
+1378,中国宏桥,353987066469.96,Materials
+2600,中国铝业,226282787108.82,Materials
+0914,海螺水泥,120400154594.88,Materials
+0486,俄铝,78395956687.92,Materials
+2788,创新实业,56689000000.0,Materials
+2610,南山铝业国际,39698460720.0,Materials
+6655,华新建材,39334597679.08,Materials
+3323,中国建材,36750223372.72,Materials
+3800,协鑫科技,35873787570.84,Materials
+1735,中环新能源,33792000000.0,Materials
+0968,信义光能,29179069131.85,Materials
+6865,福莱特玻璃,24272239213.88,Materials
+2233,西部水泥,18190234290.6,Materials
+2128,中国联塑,14891608320.0,Materials
+1313,华润建材科技,11033041750.86,Materials
+1799,新特能源,10496200000.0,Materials
+2009,金隅集团,8328661484.52,Materials
+2402,亿华通,7052400614.92,Materials
+2865,钧达股份,6951797075.52,Materials
+2570,重塑能源,5365118280.5,Materials
+1276,恒瑞医药,510400670310.6,Healthcare
+2359,药明康德,353873598583.0,Healthcare
+6160,百济神州,308751832923.6,Healthcare
+3692,翰森制药,249593285885.4,Healthcare
+6618,京东健康,211972621081.55,Healthcare
+2269,药明生物,156993330913.74,Healthcare
+1801,信达生物,148223575084.25,Healthcare
+1177,中国生物制药,122507483511.9,Healthcare
+1093,石药集团,112343904387.0,Healthcare
+9926,康方生物,108142208862.4,Healthcare
+0241,阿里健康,106106477850.4,Healthcare
+6990,科伦博泰生物-B,104793774468.6,Healthcare
+2268,药明合联,86611628034.0,Healthcare
+1099,国药控股,63411733801.12,Healthcare
+1530,三生制药,63399375191.76,Healthcare
+2228,晶泰控股,56029900328.22,Healthcare
+2196,复星医药,54731693488.5,Healthcare
+9995,荣昌生物,53580658597.15,Healthcare
+3347,泰格医药,44730303297.5,Healthcare
+2607,上海医药,43424916783.39,Healthcare
+0941,中国移动,1714252843670.4,Telecommunication Services
+0728,中国电信,469431621525.87,Telecommunication Services
+0762,中国联通,234381632482.7,Telecommunication Services
+0788,中国铁塔,199945623078.72,Telecommunication Services
+6823,香港电讯-SS,87500877524.46,Telecommunication Services
+0008,电讯盈科,41837917597.2,Telecommunication Services
+2477,经纬天地,12390000000.0,Telecommunication Services
+1310,香港宽频,10071455878.08,Telecommunication Services
+1883,中信国际电讯,9178210627.36,Telecommunication Services
+0215,和记电讯香港,5493769677.12,Telecommunication Services
+0315,数码通电讯,5262548652.78,Telecommunication Services
+1045,亚太卫星,3807147250.0,Telecommunication Services
+2597,讯众通信,1694819730.72,Telecommunication Services
+1900,中国智能交通,455849253.43,Telecommunication Services
+2545,中赣通信,236800000.0,Telecommunication Services
+0471,中播数据,75562536.42,Telecommunication Services
+0524,长城天下,61047525.0,Telecommunication Services
+8337,直通电讯,28160625.0,Telecommunication Services
+9988,阿里巴巴-W,3063521732428.4,Consumer Discretionary
+6288,FAST RETAIL-DRS,954662904000.0,Consumer Discretionary
+1211,比亚迪股份,918101794795.5,Consumer Discretionary
+0300,美的集团,652356765375.0,Consumer Discretionary
+3690,美团-W,601999002992.5,Consumer Discretionary
+9618,京东集团-SW,318707400000.0,Consumer Discretionary
+9961,携程集团-S,307455054412.8,Consumer Discretionary
+6690,海尔智家,248507185725.0,Consumer Discretionary
+2020,安踏体育,228766239940.0,Consumer Discretionary
+9927,赛力斯,188308587796.6,Consumer Discretionary
+0669,创科实业,186945255970.2,Consumer Discretionary
+0175,吉利汽车,185602209377.91,Consumer Discretionary
+1880,中国中免,180818280445.6,Consumer Discretionary
+9973,奇瑞汽车,178207987072.44,Consumer Discretionary
+0027,银河娱乐,176045476622.4,Consumer Discretionary
+9868,小鹏汽车-W,152971428125.7,Consumer Discretionary
+1928,金沙中国有限公司,148432581240.44,Consumer Discretionary
+9987,百胜中国,131137351329.6,Consumer Discretionary
+1929,周大福,129625372044.0,Consumer Discretionary
+2015,理想汽车-W,126265748853.6,Consumer Discretionary
