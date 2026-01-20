@@ -86,10 +86,13 @@ def get_current_futu_portfolio(): # for real trading
 
 def send_portfolio_alert():
     now = dt.datetime.now().time()
-    start_time = dt.time(9, 30)
-    end_time = dt.time(16, 0)
+    morning_start_time = dt.time(9, 30)
+    morning_end_time = dt.time(12, 0)
+    afternoon_start_time = dt.time(13,0)
+    afternoon_end_time = dt.time(16,0)
 
-    if start_time <= now <= end_time:
+
+    if (morning_start_time <= now <= morning_end_time) | (afternoon_start_time <= now <= afternoon_end_time):
         trd_ctx = OpenSecTradeContext(filter_trdmarket=TrdMarket.HK, host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
         ret, positions_df = trd_ctx.position_list_query()
         if ret == RET_OK:
@@ -101,6 +104,7 @@ def send_portfolio_alert():
         
         ret, history_order = trd_ctx.history_order_list_query()
         if ret == RET_OK:
+            msg = ''
             for code in portfolio_comp_df.code:
                 name = portfolio_comp_df[portfolio_comp_df.code==code]['stock_name'].values[0]
                 last_trade_time = history_order[(history_order.code==code)&(history_order.order_status=='FILLED_ALL')].iloc[0]['create_time']
@@ -121,8 +125,9 @@ def send_portfolio_alert():
                         df = download_alpaca_daily_data(code.split('.')[-1], start_date, current_date)
                     model = TrendPredModel(120)
                     bdf = model.predict(df)
-                    # send alert message
-                    send_imessage('85269926347', f"{str(dt.datetime.now().replace(microsecond=0))}-{code}: {name} drop {round(current_drawdown, 2)*100}% with current prediction {round(bdf.iloc[-1]['prediction'],2)}")
+                    msg += f"{str(dt.datetime.now().replace(microsecond=0))}-{code}: {name} drop {round(current_drawdown, 2)*100}% with current prediction {bdf.iloc[-1]['prediction'].astype(float).round(2)}\n"
+            # send alert message
+            send_imessage('85269926347', msg)       
         trd_ctx.close()
     return
 
@@ -143,7 +148,7 @@ def send_portfolio_pred(): # for real trading
 
 if __name__ == '__main__':
     # Schedule send alert
-    schedule.every(5).minutes.do(send_portfolio_alert)
+    schedule.every(15).minutes.do(send_portfolio_alert)
     while True:
         schedule.run_pending()
         time.sleep(1)

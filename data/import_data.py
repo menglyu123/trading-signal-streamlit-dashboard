@@ -38,22 +38,12 @@ class Market(Enum):
     US = 'US'
     CRYPTO = 'CRYPTO'
 
-    def code_list(self):
-        with open(f'./data/code_pool_{self.value}.txt','r') as fp:
-            list = [line.rstrip() for line in fp]
-        return list
+    def get_code_pool(self):
+        df = pd.read_csv(f'./data/code_pool_{self.value}.csv')
+        if self.value == 'HK':
+            df['code'] = df.code.astype(str).str.zfill(4)
+        return {"code_list":df.code.to_list(), "code_sector_df":df[['code','name','sector']]}
 
-
-def get_sector(code_list):
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    ret, data = quote_ctx.get_owner_plate(code_list)
-    if ret != RET_OK:
-        print('error:', data)
-    quote_ctx.close()
-    sector_mapping = pd.read_csv("./data/sector_mapping.csv")
-    df = data.set_index('plate_type').loc['INDUSTRY']
-    sector_df = df.merge(sector_mapping, on='plate_name', how='inner')
-    return sector_df[['code','name','sector']]
 
 # def download_yf_data(code_list, start_date=None, end_date=None):
 #     """

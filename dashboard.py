@@ -9,7 +9,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import io, time
 import numpy as np
-from data.import_data import Market, get_sector, download_futu_historical_daily_data, download_alpaca_daily_data
+from data.import_data import Market, download_futu_historical_daily_data, download_alpaca_daily_data
 
 WATCHLIST_DIR =  "./data"
 
@@ -69,6 +69,7 @@ def get_last_n_trading_days_predictions(n, trader, from_date=None):
     # Download HK market data
     if trader.market == Market.HK.name:
         for i, ticker in enumerate(trader.code_list):
+            print(f'download {ticker}')
             download_ticker = 'HK.0'+ticker
             if i%60 == 0:
                 tick = time.time()
@@ -205,14 +206,7 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
     if predictions_df is None or predictions_df.empty:
         return None
     try:
-        if market == Market.HK.name:
-            sector_code_list = ['HK.0'+code for code in Market(market).code_list()]
-            sector_df = get_sector(sector_code_list)
-            sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1][1:])
-        if market == Market.US.name:
-            sector_code_list = ['US.'+code for code in Market(market).code_list()]
-            sector_df = get_sector(sector_code_list)
-            sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1])
+        sector_df = Market(market).get_code_pool()["code_sector_df"]
         if sector_df is None or sector_df.empty:
             return None
         
@@ -406,6 +400,7 @@ with col_watch_manage:
     with col_del:
         if st.button("Delete", key="watch_delete_button"):
             code = stock_code.strip().upper()
+            print(f"delete {code}")
             if not code:
                 st.warning("Please enter a stock code to delete.")
             elif code in watchlist:
@@ -428,35 +423,38 @@ with col_watch_plots:
             step=10,
             key="watch_backtest_days"
         )
-        today = dt.date.today()
-        start_date = today - dt.timedelta(days=trader.winlen+60+20+watch_days)
 
-        with st.spinner("Running backtests for watch list..."):
-            tick = time.time()
-            for i, ticker in enumerate(watchlist):
-                st.markdown(f"**{ticker}**")
-                if market_choice == Market.US.name:
-                    df = download_alpaca_daily_data(ticker, start_date, today)
-                else:
-                    download_ticker = ticker if ticker.startswith("HK.") else f"HK.0{ticker}"
-                    if i % 60 == 0:
-                        tick = time.time()
-                    df = download_futu_historical_daily_data(download_ticker, start_date, today)
-                    time_cost = time.time()-tick
-                    if ((i+1) % 60 == 0) and (time_cost <= 30):
-                        time.sleep(31 - time_cost)
+        run_watchlist = st.button("Run watchlist backtest", key="watch_backtest_button")
+        if run_watchlist:
+            today = dt.date.today()
+            start_date = today - dt.timedelta(days=trader.winlen+60+20+watch_days)
 
-                if df is None or df.empty:
-                    st.warning(f"Could not fetch data for {ticker}.")
-                    continue
+            with st.spinner("Running backtests for watch list..."):
+                tick = time.time()
+                for i, ticker in enumerate(watchlist):
+                    st.markdown(f"**{ticker}**")
+                    if market_choice == Market.US.name:
+                        df = download_alpaca_daily_data(ticker, start_date, today)
+                    else:
+                        download_ticker = ticker if ticker.startswith("HK.") else f"HK.0{ticker}"
+                        if i % 60 == 0:
+                            tick = time.time()
+                        df = download_futu_historical_daily_data(download_ticker, start_date, today)
+                        time_cost = time.time()-tick
+                        if ((i+1) % 60 == 0) and (time_cost <= 30):
+                            time.sleep(31 - time_cost)
 
-                result_df = trader.backtest_single(df)
-                if result_df is None:
-                    st.warning(f"Failed to run backtest for {ticker}.")
-                    continue
+                    if df is None or df.empty:
+                        st.warning(f"Could not fetch data for {ticker}.")
+                        continue
 
-                plot_buf = plot_single(ticker, result_df)
-                st.image(plot_buf)
+                    result_df = trader.backtest_single(df)
+                    if result_df is None:
+                        st.warning(f"Failed to run backtest for {ticker}.")
+                        continue
+
+                    plot_buf = plot_single(ticker, result_df)
+                    st.image(plot_buf)
 
 
 
@@ -510,37 +508,31 @@ if st.session_state.histogram_image is not None:
 if st.session_state.sector_chart is not None:
     st.image(st.session_state.sector_chart)
 
-# Display top 10 bullish tickers
+# Display top 20 bullish tickers
 if st.session_state.predictions_df is not None:
     col1, col2 = st.columns([1,1])
     tmp_df = st.session_state.predictions_df.copy()
-    if market_choice == Market.HK.name:
-        sector_code_list = ['HK.0'+code for code in Market(market_choice).code_list()]
-        sector_df = get_sector(sector_code_list)
-        sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1][1:])
-    if market_choice == Market.US.name:
-        sector_code_list = ['US.'+code for code in Market(market_choice).code_list()]
-        sector_df = get_sector(sector_code_list)
-        sector_df['code'] = sector_df.code.apply(lambda x: x.split('.')[1])
+    sector_df = Market(market_choice).get_code_pool()["code_sector_df"]
+
     sector_df.set_index('code', inplace=True)
 
     with col1:
-        st.subheader("Top 10 Bullish Predictions")
+        st.subheader("Top 20 Bullish Predictions")
         tmp_df['bottom_strength'] = tmp_df['up_strength']*tmp_df.uptrend.astype(int)
-        top_10 = tmp_df.sort_values(['bottom_strength','dist_avgs'], ascending=[False, True]).head(10)
-        top_10.reset_index(inplace=True)
-        top_10 = top_10.join(sector_df, on='code', how='left')
-        top_10.set_index('code', inplace=True)
-        st.dataframe(top_10[['name','sector','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+        top_n = tmp_df.sort_values(['bottom_strength','dist_avgs'], ascending=[False, True]).head(20)
+        top_n.reset_index(inplace=True)
+        top_n = top_n.join(sector_df, on='code', how='left')
+        top_n.set_index('code', inplace=True)
+        st.dataframe(top_n[['name','sector','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
     with col2:
-        st.subheader("Top 10 Bearish Predictions")
+        st.subheader("Top 20 Bearish Predictions")
         tmp_df1 = st.session_state.predictions_df.copy()
         tmp_df1['top_collapse'] = tmp_df1['down_strength']*(1-tmp_df1.uptrend.astype(int))
-        top_10 = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, True]).head(10)
-        top_10.reset_index(inplace=True)
-        top_10 = top_10.join(sector_df, on='code',how='left')
-        top_10.set_index('code', inplace=True)
-        st.dataframe(top_10[['name','sector','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
+        top_n = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, True]).head(20)
+        top_n.reset_index(inplace=True)
+        top_n = top_n.join(sector_df, on='code',how='left')
+        top_n.set_index('code', inplace=True)
+        st.dataframe(top_n[['name','sector','top_collapse', 'prediction', 'accel','rmse_10','dist_avgs','close']])
 
 
 
@@ -569,7 +561,7 @@ else:
     
     if selected_stocks:  # Only show slider if stocks are selected
         days = st.slider("Analysis Period (Days)", min_value=30, max_value=500, value=100, step=10)
-        
+
         # Extract stock codes from the selected options
         selected_tickers = [stock.split()[0] for stock in selected_stocks]
         
@@ -589,11 +581,6 @@ else:
             # Download HK market data using futu
             if market_choice == Market.HK.name:
                 all_stock_data['HSI (Hang Seng Index)'] = download_futu_historical_daily_data('HK.800000', start_date, today)
-                # rs = download_yf_data(['^HSI'], start_date, today)
-                # df = rs['^HSI'].reset_index()
-                # df.loc[len(df)-1,'Volume'] = df.iloc[-2]['Volume']
-                # df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close', 'Volume':'volume'},inplace=True)
-                # all_stock_data['HSI (Hang Sheng Index)'] = df
                 for i, ticker in enumerate(selected_tickers):
                     download_ticker = 'HK.0'+ticker
                     if i%60 == 0:
@@ -621,4 +608,4 @@ else:
                     else:
                         st.error("Failed to generate analysis for this stock.")
         else:
-            st.error("Failed to fetch data for selected stocks. Please try again later.") 
+            st.error("Failed to fetch data for selected stocks. Please try again later.")

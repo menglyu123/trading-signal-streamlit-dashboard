@@ -157,15 +157,6 @@ def get_binance_daily_data(symbol, since: datetime, until: datetime) -> list[dic
 
 
 
-
-
-#------ top 100 code ------
-with open('./data/code_pool_hk.txt','r') as fp:
-    CODE_LIST = [line.rstrip() for line in fp]
-
-
-
-
 #------ custom metric adjusted F1 ------
 class custom_metric(tf.keras.metrics.Metric):
     def __init__(self):
