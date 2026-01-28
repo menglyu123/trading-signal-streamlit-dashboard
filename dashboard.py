@@ -13,6 +13,32 @@ from data.import_data import Market, download_futu_historical_daily_data, downlo
 
 WATCHLIST_DIR =  "./data"
 
+def _trend_flags(result_df: pd.DataFrame, period: int):
+    """
+    EMA-based trend logic on a single ticker.
+    """
+    if result_df is None or result_df.empty:
+        return False
+    if len(result_df) < max(3, period + 2):
+        return False
+    required = {"EMA_5", "EMA_10", "EMA_20", "EMA_60"}
+    if not required.issubset(set(result_df.columns)):
+        return False
+
+    ema5_change = result_df["EMA_5"].pct_change(1).iloc[-period:]
+    is_ema5_mostly_up = (ema5_change.lt(0).sum() <= round(period * 0.2))
+    is_ema5_mostly_greater_ema10 = (
+        (result_df.iloc[-period:]["EMA_5"] < result_df.iloc[-period:]["EMA_10"]).sum() <= round(period * 0.1)
+    )
+    is_ema10_above_ema20 = bool(result_df.iloc[-1]["EMA_10"] > result_df.iloc[-1]["EMA_20"])
+    is_ema20_above_ema60 = bool(result_df.iloc[-1]["EMA_20"] > result_df.iloc[-1]["EMA_60"])
+
+    return bool(
+        is_ema5_mostly_up
+        and is_ema5_mostly_greater_ema10
+        and is_ema10_above_ema20
+        and is_ema20_above_ema60
+    )
 
 def get_watchlist_path(market: str) -> str:
     """
@@ -20,7 +46,6 @@ def get_watchlist_path(market: str) -> str:
     """
     filename = f"watchlist_{market.lower()}.txt"
     return os.path.join(WATCHLIST_DIR, filename)
-
 
 def load_watchlist(market: str):
     """
@@ -33,7 +58,6 @@ def load_watchlist(market: str):
         tickers = [line.strip() for line in fh.readlines() if line.strip()]
     return tickers, path
 
-
 def save_watchlist(market: str, tickers):
     """
     Persist watchlist tickers to disk and return the path.
@@ -44,10 +68,9 @@ def save_watchlist(market: str, tickers):
         fh.write("\n".join(tickers))
     return path
 
-
-def get_last_n_trading_days_predictions(n, trader, from_date=None):
+def get_batch_predictions(trader, from_date=None)->dict:
     """
-    Get predictions for the last n trading days
+    Get predictions for the last 500 trading days
     Returns a tuple of (predictions_list, dates_list)
     """
     if from_date is None:
@@ -57,7 +80,7 @@ def get_last_n_trading_days_predictions(n, trader, from_date=None):
     current_date = pd.Timestamp(from_date).date()
 
     # Download data once for all dates with enough history
-    start_date = current_date - dt.timedelta(days=trader.winlen+60+90+n+40)
+    start_date = current_date - dt.timedelta(days=trader.winlen+60+20+500)
 
     data = {}
 
@@ -80,6 +103,7 @@ def get_last_n_trading_days_predictions(n, trader, from_date=None):
     if data is None:
         return [], []
     
+    preds_df_comb = {}
     for ticker in trader.code_list:
         # Get data up to current date
         print(f"predict {ticker}")
@@ -88,9 +112,14 @@ def get_last_n_trading_days_predictions(n, trader, from_date=None):
         if len(pred_df) < 3:
             print("error ticker", ticker)
             continue
+        preds_df_comb[ticker] = pred_df
+    return preds_df_comb
+
+def get_last_n_trading_days_predictions(n, preds_set:dict):
+    preds_df_comb = []
+    for ticker, pred_df in preds_set.items():
         pred_df['code'] = ticker
-        preds_df_comb.append(pred_df)
-    
+        preds_df_comb.append(pred_df.iloc[-n:])
     comb = pd.concat(preds_df_comb, axis=0)
     predictions_list = []
     dates_list = []
@@ -132,6 +161,48 @@ def plot_single(code, bdf):
     plt.close()
     buf.seek(0)
     return buf
+
+def show_batch_plots(stock_code_list, sector_df, with_lookback_slider=True):
+    today = dt.date.today()
+    # Lookback period slider
+    if with_lookback_slider:
+        days = st.slider(
+            "Period (Days)",
+            min_value=100,
+            max_value=500,
+            value=300,
+            step=100,
+            key="look back days"
+        )
+        start_date = today - dt.timedelta(days=days)
+    else:
+        start_date = today - dt.timedelta(days=500)
+
+    # Plot each stock
+    for stock_code in stock_code_list:
+        display_name = stock_code
+        # Prefer name from sector_df (it should always have names)
+        try:
+            if 'name' in sector_df.columns:
+                name_series = sector_df.loc[sector_df['code'] == stock_code, 'name']
+                if not name_series.empty:
+                    name_val = name_series.iloc[0]
+                    if pd.notna(name_val) and str(name_val).strip():
+                        display_name = f"{stock_code} - {name_val}"
+        except Exception:
+            pass
+        
+        ticker_pred_df = st.session_state.predictions_pool[stock_code]
+        df = ticker_pred_df[ticker_pred_df.date>=start_date]
+    
+        if df is None or df.empty:
+            st.warning(f"Could not find predictions for {stock_code}.")
+            continue
+        
+        # Collapsible plot so you can "close" it
+        with st.expander(f"{display_name}", expanded=False):
+            plot_buf = plot_single(stock_code, df)
+            st.image(plot_buf)
 
 def plot_prediction_histogram(predictions_list, dates_list):
     """
@@ -325,7 +396,7 @@ def get_trader_hk():
 def get_trader_us():
     return auto_trade(Market.US.name)
 
-# Market selection
+### *********************** Market selection *********************** 
 market_choice = st.selectbox(
     "Select Market",
     options=['HK', 'US'],
@@ -338,7 +409,6 @@ if market_choice == Market.HK.name:
     trader = get_trader_hk()
 if market_choice == Market.US.name:
     trader = get_trader_us()
-
 
 # Check if trader is available
 if trader is None:
@@ -363,102 +433,11 @@ if 'update_clicked' not in st.session_state:
 if 'dates_list' not in st.session_state:
     st.session_state.dates_list = None
 
-st.title(f"{market_choice} Stock Market Predictions Dashboard")
-
-
-# Watchlist Section
-st.header("Stocks in My Watch List")
-watchlist, watchlist_path = load_watchlist(market_choice)
-col_watch_plots, col_watch_manage = st.columns([3, 1])
-
-with col_watch_manage:
-    st.subheader("Manage Watch List")
-    st.caption(f"Stored in {watchlist_path}")
-
-    if watchlist:
-        st.write("Current watch list: " + ", ".join(watchlist))
-    else:
-        st.info("No stocks in watch list yet.")
-
-    stock_code = st.text_input(
-        "Stock code",
-        key="watch_code_input",
-        placeholder="e.g., AAPL or 0700",
-    )
-    col_add, col_del = st.columns(2)
-    with col_add:
-        if st.button("Add", key="watch_add_button"):
-            code = stock_code.strip().upper()
-            if not code:
-                st.warning("Please enter a stock code to add.")
-            elif code in watchlist:
-                st.info(f"{code} is already in the watch list.")
-            else:
-                watchlist.append(code)
-                save_watchlist(market_choice, watchlist)
-                st.success(f"Added {code} to the watch list.")
-    with col_del:
-        if st.button("Delete", key="watch_delete_button"):
-            code = stock_code.strip().upper()
-            print(f"delete {code}")
-            if not code:
-                st.warning("Please enter a stock code to delete.")
-            elif code in watchlist:
-                watchlist = [c for c in watchlist if c != code]
-                save_watchlist(market_choice, watchlist)
-                st.success(f"Deleted {code} from the watch list.")
-            else:
-                st.warning(f"{code} is not in the watch list.")
-
-with col_watch_plots:
-    st.subheader("Predictions for Watch List")
-    if not watchlist:
-        st.info("Add stocks to the watch list to see their backtests.")
-    else:
-        watch_days = st.slider(
-            "Window (days)",
-            min_value=60,
-            max_value=500,
-            value=200,
-            step=10,
-            key="watch_backtest_days"
-        )
-
-        run_watchlist = st.button("Run watchlist backtest", key="watch_backtest_button")
-        if run_watchlist:
-            today = dt.date.today()
-            start_date = today - dt.timedelta(days=trader.winlen+60+20+watch_days)
-
-            with st.spinner("Running backtests for watch list..."):
-                tick = time.time()
-                for i, ticker in enumerate(watchlist):
-                    st.markdown(f"**{ticker}**")
-                    if market_choice == Market.US.name:
-                        df = download_alpaca_daily_data(ticker, start_date, today)
-                    else:
-                        download_ticker = ticker if ticker.startswith("HK.") else f"HK.0{ticker}"
-                        if i % 60 == 0:
-                            tick = time.time()
-                        df = download_futu_historical_daily_data(download_ticker, start_date, today)
-                        time_cost = time.time()-tick
-                        if ((i+1) % 60 == 0) and (time_cost <= 30):
-                            time.sleep(31 - time_cost)
-
-                    if df is None or df.empty:
-                        st.warning(f"Could not fetch data for {ticker}.")
-                        continue
-
-                    result_df = trader.backtest_single(df)
-                    if result_df is None:
-                        st.warning(f"Failed to run backtest for {ticker}.")
-                        continue
-
-                    plot_buf = plot_single(ticker, result_df)
-                    st.image(plot_buf)
+st.title(f"{market_choice} Stock Market Analysis Dashboard")
 
 
 
-# Market Predictions Section
+### *********************** Market Predictions Section *********************** 
 st.header("Market-wide Predictions")
 
 col1, col2 = st.columns([4, 1])
@@ -469,7 +448,9 @@ with col1:
     if st.session_state.update_clicked:
         with st.spinner("Fetching predictions for all stocks..."):
             # Get predictions for last 3 trading days
-            predictions_list, dates_list = get_last_n_trading_days_predictions(3, trader)
+            preds_comb_df = get_batch_predictions(trader)
+            predictions_list, dates_list = get_last_n_trading_days_predictions(3, preds_comb_df)
+            st.session_state.predictions_pool = preds_comb_df
             
             if len(predictions_list) == 3:
                 st.session_state.predictions_df = predictions_list[2]
@@ -498,7 +479,7 @@ with col2:
     if st.session_state.last_update:
         st.info(f"Last updated: {st.session_state.last_update.strftime('%Y-%m-%d %H:%M:%S')}")
     else:
-        st.info("Click 'Update Market Predictions' to fetch data")
+        st.info("Click 'Update Market Predictions' to make prediction")
 
 # Display prediction histograms
 if st.session_state.histogram_image is not None:
@@ -508,7 +489,7 @@ if st.session_state.histogram_image is not None:
 if st.session_state.sector_chart is not None:
     st.image(st.session_state.sector_chart)
 
-# Display top 20 bullish tickers
+# Display top 20 breakthrough tickers
 if st.session_state.predictions_df is not None:
     col1, col2 = st.columns([1,1])
     tmp_df = st.session_state.predictions_df.copy()
@@ -517,7 +498,7 @@ if st.session_state.predictions_df is not None:
     sector_df.set_index('code', inplace=True)
 
     with col1:
-        st.subheader("Top 20 Bullish Predictions")
+        st.subheader("Top 20 Breakthrough")
         tmp_df['bottom_strength'] = tmp_df['up_strength']*tmp_df.uptrend.astype(int)
         top_n = tmp_df.sort_values(['bottom_strength','dist_avgs'], ascending=[False, True]).head(20)
         top_n.reset_index(inplace=True)
@@ -525,10 +506,10 @@ if st.session_state.predictions_df is not None:
         top_n.set_index('code', inplace=True)
         st.dataframe(top_n[['name','sector','bottom_strength', 'prediction', 'accel','rmse_10','dist_avgs','close']])
     with col2:
-        st.subheader("Top 20 Bearish Predictions")
+        st.subheader("Top 20 Collapse")
         tmp_df1 = st.session_state.predictions_df.copy()
         tmp_df1['top_collapse'] = tmp_df1['down_strength']*(1-tmp_df1.uptrend.astype(int))
-        top_n = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, True]).head(20)
+        top_n = tmp_df1.sort_values(['top_collapse','dist_avgs'], ascending=[False, False]).head(20)
         top_n.reset_index(inplace=True)
         top_n = top_n.join(sector_df, on='code',how='left')
         top_n.set_index('code', inplace=True)
@@ -536,76 +517,157 @@ if st.session_state.predictions_df is not None:
 
 
 
-# Individual Stock Analysis Section
-st.header("Individual Stock Analysis")
+### *********************** Trend Analysis Section (EMA-based, on full code pool) *********************** 
+st.header("Trend Analysis")
 
-# Only fetch predictions if we haven't already
+# Only show trend analysis if predictions are available
 if 'predictions_df' not in st.session_state or st.session_state.predictions_df is None:
-    st.info("Please click 'Update Market Predictions' to analyze individual stocks.")
+    st.info("Please click 'Update Market Predictions' to analyze sectors.")
 else:
-    # Create sorted options for the dropdown
-    predictions_sorted = st.session_state.predictions_df.sort_values('prediction', ascending=False)
-    stock_options = []
-    for code in predictions_sorted.index:
-        pred_value = predictions_sorted.loc[code, 'prediction']
-        # Format the display string with stock code and prediction value only
-        display_string = f"{code} (Pred: {pred_value:.3f})"
-        stock_options.append(display_string)
-    
-    # Allow multiple stock selection with formatted options
-    selected_stocks = st.multiselect(
-        "Select stocks to analyze (sorted by prediction value)",
-        options=stock_options,
-        help="Stocks are sorted by prediction value (highest to lowest)"
+    # Only need trend period and a button
+    trend_pattern_period = st.slider(
+        "Trend Pattern Period (days)",
+        min_value=10,
+        max_value=60,
+        value=20,
+        step=1,
+        key="trend_pattern_period"
     )
-    
-    if selected_stocks:  # Only show slider if stocks are selected
-        days = st.slider("Analysis Period (Days)", min_value=30, max_value=500, value=100, step=10)
 
-        # Extract stock codes from the selected options
-        selected_tickers = [stock.split()[0] for stock in selected_stocks]
-        
-        # Download data for all selected stocks at once
-        today = dt.date.today()
-        start_date = today - dt.timedelta(days=trader.winlen+60+20+days)
-        
-        with st.spinner(f"Fetching data for selected stocks..."):
-            all_stock_data = {}
-            # Download US market data using yfinance
-            if market_choice == Market.US.name:
-                all_stock_data['SPY'] = download_alpaca_daily_data('SPY', start_date, today)
-                all_stock_data['DIA'] = download_alpaca_daily_data('DIA', start_date, today)
-                for ticker in selected_tickers:
-                    all_stock_data[ticker] = download_alpaca_daily_data(ticker, start_date, today)
+    run_trend_analysis = st.button("Run Trend Analysis", key="run_trend_analysis_button")
 
-            # Download HK market data using futu
-            if market_choice == Market.HK.name:
-                all_stock_data['HSI (Hang Seng Index)'] = download_futu_historical_daily_data('HK.800000', start_date, today)
-                for i, ticker in enumerate(selected_tickers):
-                    download_ticker = 'HK.0'+ticker
-                    if i%60 == 0:
-                        tick = time.time()
-                    all_stock_data[ticker] = download_futu_historical_daily_data(download_ticker, start_date, today)
-                    time_cost = time.time()-tick
-                    if ((i+1)%60==0) & (time_cost<=30):
-                        time.sleep(31-time_cost)
+    if run_trend_analysis:
+        # Get sector data and full code pool
+        sector_df = Market(market_choice).get_code_pool()["code_sector_df"]
+        code_list = sector_df.code.to_list()
+
+        with st.spinner(f"Running trend analysis for {len(code_list)} tickers..."):
+            passing = []
+            for ticker in st.session_state.predictions_pool.keys():
+                ticker_pred_df = st.session_state.predictions_pool[ticker]
+                result_df = ticker_pred_df[ticker_pred_df.date>=dt.date.today()-dt.timedelta(days=500)]
+                if _trend_flags(result_df, trend_pattern_period):
+                    passing.append(ticker)
+
+            if not passing:
+                st.info("No tickers in the code pool passed the trend conditions.")
+            else:
+                show_batch_plots(passing, sector_df, with_lookback_slider=False)
+
+
+
+### *************************** Stock View Section *************************
+st.header("View by Sector/Watchlist")
+# Only show this section if predictions are available
+if 'predictions_df' not in st.session_state or st.session_state.predictions_df is None:
+    st.info("Please click 'Update Market Predictions' to analyze sectors.")
+else:
+    view_level_choice = st.selectbox(
+        "Select View Level",
+        index=None,
+        options=['Sector', 'Watchlist', 'Customize'],
+        help="Choose between Sector View and Individual View"
+    )
+
+    # Get sector data
+    sector_df = Market(market_choice).get_code_pool()["code_sector_df"]
+
+    # ------------- View by Sector -------------
+    if view_level_choice == "Sector":
+        # Get unique sectors from the sector_df
+        available_sectors = sorted(sector_df['sector'].dropna().unique().tolist())
+
+        # Sector selection
+        selected_sector = st.selectbox(
+            "Select Sector",
+            index=None,
+            options=available_sectors,
+            help="Choose a sector to view its constituent stocks"
+        )
         
-        if all_stock_data:
-            for stock in all_stock_data.keys():
-                st.subheader(f"Ticker: {stock}")
-                
-                df = all_stock_data.get(stock)
-                if df is None or df.empty:
-                    st.error(f"Error fetching data for stock {stock}")
-                else:
-                    # Run backtest_single
-                    result_df = trader.backtest_single(df)
-                    
-                    if result_df is not None:
-                        # Create and display plot directly from memory
-                        plot_buf = plot_single(stock, result_df)
-                        st.image(plot_buf)
+        if selected_sector:
+            # Get all stocks in the selected sector
+            sector_stocks = sector_df[sector_df['sector'] == selected_sector]['code'].tolist()
+            
+            # Filter to only include stocks that have predictions
+            predictions_codes = st.session_state.predictions_df.index.tolist()
+            sector_stocks = [code for code in sector_stocks if code in predictions_codes]
+            
+            if not sector_stocks:
+                st.info(f"No stocks with predictions found in the {selected_sector} sector.")
+            else:
+                st.write(f"**Found {len(sector_stocks)} stocks in {selected_sector} sector**")
+                show_batch_plots(sector_stocks, sector_df)
+
+    # ------------- View by Watchlist -------------
+    if view_level_choice == "Watchlist":
+        watchlist, watchlist_path = load_watchlist(market_choice)
+        col_watch_plots, col_watch_manage = st.columns([3, 1])
+
+        with col_watch_manage:
+            st.subheader("Manage Watch List")
+            st.caption(f"Stored in {watchlist_path}")
+
+            if watchlist:
+                st.write("Current watch list: " + ", ".join(watchlist))
+            else:
+                st.info("No stocks in watch list yet.")
+
+            stock_code = st.text_input(
+                "Stock code",
+                key="watch_code_input",
+                placeholder="e.g., AAPL or 0700",
+            )
+            col_add, col_del = st.columns(2)
+            with col_add:
+                if st.button("Add", key="watch_add_button"):
+                    code = stock_code.strip().upper()
+                    if not code:
+                        st.warning("Please enter a stock code to add.")
+                    elif code in watchlist:
+                        st.info(f"{code} is already in the watch list.")
                     else:
-                        st.error("Failed to generate analysis for this stock.")
-        else:
-            st.error("Failed to fetch data for selected stocks. Please try again later.")
+                        watchlist.append(code)
+                        save_watchlist(market_choice, watchlist)
+                        st.success(f"Added {code} to the watch list.")
+            with col_del:
+                if st.button("Delete", key="watch_delete_button"):
+                    code = stock_code.strip().upper()
+                    print(f"delete {code}")
+                    if not code:
+                        st.warning("Please enter a stock code to delete.")
+                    elif code in watchlist:
+                        watchlist = [c for c in watchlist if c != code]
+                        save_watchlist(market_choice, watchlist)
+                        st.success(f"Deleted {code} from the watch list.")
+                    else:
+                        st.warning(f"{code} is not in the watch list.")
+
+        with col_watch_plots:
+            if not watchlist:
+                st.info("Add stocks to the watch list to see their backtests.")
+            else:
+                show_batch_plots(watchlist, sector_df)
+    
+    # ------------- View by Selection -------------
+    if view_level_choice == "Customize":
+        # Create sorted options for the dropdown
+        predictions_sorted = st.session_state.predictions_df.sort_values('prediction', ascending=False)
+        stock_options = []
+        for code in predictions_sorted.index:
+            pred_value = predictions_sorted.loc[code, 'prediction']
+            # Format the display string with stock code and prediction value only
+            display_string = f"{code} (Pred: {pred_value:.3f})"
+            stock_options.append(display_string)
+        
+        # Allow multiple stock selection with formatted options
+        selected_stocks = st.multiselect(
+            "Select stocks to view (sorted by prediction value)",
+            options=stock_options,
+            help="Stocks are sorted by prediction value (highest to lowest)"
+        )
+        
+        if selected_stocks:  # Only show slider if stocks are selected
+            # Extract stock codes from the selected options
+            selected_tickers = [stock.split()[0] for stock in selected_stocks]
+            show_batch_plots(selected_tickers, sector_df)    
