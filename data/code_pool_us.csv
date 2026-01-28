@@ -1,276 +1,123 @@
-code,name,market_cap,sector
-NVDA,NVIDIA Corporation,4.531T,Technology
-AAPL,Apple Inc.,3.776T,Technology
-MSFT,Microsoft Corporation,3.418T,Technology
-AVGO,Broadcom Inc.,1.668T,Technology
-ORCL,Oracle Corporation,549.026B,Technology
-MU,"Micron Technology, Inc.",408.278B,Technology
-PLTR,Palantir Technologies Inc.,407.496B,Technology
-AMD,"Advanced Micro Devices, Inc.",377.429B,Technology
-CSCO,"Cisco Systems, Inc.",297.083B,Technology
-IBM,International Business Machines Corporation,285.721B,Technology
-LRCX,Lam Research Corporation,281.16B,Technology
-AMAT,"Applied Materials, Inc.",260.51B,Technology
-INTC,Intel Corporation,224.152B,Technology
-CRM,"Salesforce, Inc.",216.209B,Technology
-KLAC,KLA Corporation,206.458B,Technology
-SHOP,Shopify Inc.,202.84B,Technology
-APH,Amphenol Corporation,188.982B,Technology
-ACN,Accenture plc,177.49B,Technology
-UBER,"Uber Technologies, Inc.",176.948B,Technology
-TXN,Texas Instruments Incorporated,174.173B,Technology
-QCOM,QUALCOMM Incorporated,172.014B,Technology
-ANET,"Arista Networks, Inc.",163.493B,Technology
-INTU,Intuit Inc.,151.809B,Technology
-ADI,"Analog Devices, Inc.",146.99B,Technology
-NOW,"ServiceNow, Inc.",134.33B,Technology
-BRK.B,Berkshire Hathaway Inc.,1.064T,Financial Services
-JPM,JPMorgan Chase & Co.,1.05T,Financial Services
-V,Visa Inc.,633.585B,Financial Services
-BAC,Bank of America Corporation,529.078B,Financial Services
-MA,Mastercard Incorporated,487.705B,Financial Services
-GS,"The Goldman Sachs Group, Inc.",363.209B,Financial Services
-MS,Morgan Stanley,330.907B,Financial Services
-C,Citigroup Inc.,297.059B,Financial Services
-WFC,Wells Fargo & Company,277.432B,Financial Services
-AXP,American Express Company,253.851B,Financial Services
-RY,Royal Bank of Canada,238.234B,Financial Services
-BX,Blackstone Inc.,200.624B,Financial Services
-SCHW,The Charles Schwab Corporation,188.456B,Financial Services
-BLK,"BlackRock, Inc.",180.467B,Financial Services
-TD,The Toronto-Dominion Bank,173.538B,Financial Services
-SPGI,S&P Global Inc.,166.801B,Financial Services
-COF,Capital One Financial Corporation,152.934B,Financial Services
-IBKR,"Interactive Brokers Group, Inc.",124.707B,Financial Services
-KKR,KKR & Co. Inc.,121.685B,Financial Services
-CB,Chubb Limited,119.914B,Financial Services
-PGR,The Progressive Corporation,118.629B,Financial Services
-CME,CME Group Inc.,100.788B,Financial Services
-ICE,"Intercontinental Exchange, Inc.",99.59B,Financial Services
-HOOD,"Robinhood Markets, Inc.",97.778B,Financial Services
-MCO,Moody's Corporation,96.66B,Financial Services
-AMZN,"Amazon.com, Inc.",2.556T,Consumer Cyclical
-TSLA,"Tesla, Inc.",1.455T,Consumer Cyclical
-HD,"The Home Depot, Inc.",378.464B,Consumer Cyclical
-MCD,McDonald's Corporation,219.383B,Consumer Cyclical
-TJX,"The TJX Companies, Inc.",175.154B,Consumer Cyclical
-BKNG,Booking Holdings Inc.,165.806B,Consumer Cyclical
-LOW,"Lowe's Companies, Inc.",155.692B,Consumer Cyclical
-SBUX,Starbucks Corporation,105.739B,Consumer Cyclical
-MELI,"MercadoLibre, Inc.",105.197B,Consumer Cyclical
-CVNA,Carvana Co.,96.07B,Consumer Cyclical
-NKE,"NIKE, Inc.",95.307B,Consumer Cyclical
-DASH,"DoorDash, Inc.",88.493B,Consumer Cyclical
-MAR,"Marriott International, Inc.",88.463B,Consumer Cyclical
-ORLY,"O'Reilly Automotive, Inc.",80.105B,Consumer Cyclical
-ABNB,"Airbnb, Inc.",79.995B,Consumer Cyclical
-GM,General Motors Company,76.947B,Consumer Cyclical
-RCL,Royal Caribbean Cruises Ltd.,75.272B,Consumer Cyclical
-HLT,Hilton Worldwide Holdings Inc.,70.758B,Consumer Cyclical
-ROST,"Ross Stores, Inc.",62.561B,Consumer Cyclical
-AZO,"AutoZone, Inc.",58.581B,Consumer Cyclical
-F,Ford Motor Company,54.189B,Consumer Cyclical
-CMG,"Chipotle Mexican Grill, Inc.",53.582B,Consumer Cyclical
-DHI,"D.R. Horton, Inc.",45.55B,Consumer Cyclical
-YUM,"Yum! Brands, Inc.",44.497B,Consumer Cyclical
-EBAY,eBay Inc.,42.515B,Consumer Cyclical
-GOOG,Alphabet Inc.,3.988T,Communication Services
-META,"Meta Platforms, Inc.",1.563T,Communication Services
-NFLX,"Netflix, Inc.",372.884B,Communication Services
-TMUS,"T-Mobile US, Inc.",209.688B,Communication Services
-DIS,The Walt Disney Company,199.93B,Communication Services
-APP,AppLovin Corporation,192.383B,Communication Services
-T,AT&T Inc.,167.963B,Communication Services
-VZ,Verizon Communications Inc.,164.061B,Communication Services
-CMCSA,Comcast Corporation,109.643B,Communication Services
-SPOT,Spotify Technology S.A.,103.874B,Communication Services
-WBD,"Warner Bros. Discovery, Inc.",70.846B,Communication Services
-RBLX,Roblox Corporation,61.264B,Communication Services
-EA,Electronic Arts Inc.,51.084B,Communication Services
-TTWO,"Take-Two Interactive Software, Inc.",44.373B,Communication Services
-RDDT,"Reddit, Inc.",43.775B,Communication Services
-SATS,EchoStar Corporation,35.487B,Communication Services
-LYV,"Live Nation Entertainment, Inc.",33.538B,Communication Services
-FOXA,Fox Corporation,31.959B,Communication Services
-NBIS,Nebius Group N.V.,27.379B,Communication Services
-CHTR,"Charter Communications, Inc.",25.92B,Communication Services
-OMC,Omnicom Group Inc.,25.32B,Communication Services
-FWONA,Formula One Group,22.303B,Communication Services
-PINS,"Pinterest, Inc.",17.617B,Communication Services
-TTD,"The Trade Desk, Inc.",17.346B,Communication Services
-ZG,"Zillow Group, Inc.",16.976B,Communication Services
-LLY,Eli Lilly and Company,930.881B,Healthcare
-JNJ,Johnson & Johnson,526.816B,Healthcare
-ABBV,AbbVie Inc.,378.839B,Healthcare
-UNH,UnitedHealth Group Incorporated,299.851B,Healthcare
-MRK,"Merck & Co., Inc.",271.834B,Healthcare
-TMO,Thermo Fisher Scientific Inc.,232.458B,Healthcare
-ABT,Abbott Laboratories,211.918B,Healthcare
-ISRG,"Intuitive Surgical, Inc.",191.809B,Healthcare
-AMGN,Amgen Inc.,177.919B,Healthcare
-DHR,Danaher Corporation,168.981B,Healthcare
-GILD,"Gilead Sciences, Inc.",154.989B,Healthcare
-PFE,Pfizer Inc.,145.838B,Healthcare
-SYK,Stryker Corporation,139.118B,Healthcare
-BSX,Boston Scientific Corporation,130.61B,Healthcare
-MDT,Medtronic plc,124.106B,Healthcare
-VRTX,Vertex Pharmaceuticals Incorporated,113.161B,Healthcare
-BMY,Bristol-Myers Squibb Company,112.496B,Healthcare
-HCA,"HCA Healthcare, Inc.",109.811B,Healthcare
-MCK,McKesson Corporation,104.54B,Healthcare
-CVS,CVS Health Corporation,99.777B,Healthcare
-ELV,"Elevance Health, Inc.",84.413B,Healthcare
-REGN,"Regeneron Pharmaceuticals, Inc.",77.693B,Healthcare
-CI,The Cigna Group,72.714B,Healthcare
-COR,"Cencora, Inc.",68.839B,Healthcare
-BDX,"Becton, Dickinson and Company",59.113B,Healthcare
-GE,GE Aerospace,344.77B,Industrials
-CAT,Caterpillar Inc.,303.054B,Industrials
-RTX,RTX Corporation,270.729B,Industrials
-BA,The Boeing Company,193.951B,Industrials
-GEV,GE Vernova Inc.,185.534B,Industrials
-HON,Honeywell International Inc.,147.891B,Industrials
-DE,Deere & Company,139.441B,Industrials
-UNP,Union Pacific Corporation,136.124B,Industrials
-LMT,Lockheed Martin Corporation,135.977B,Industrials
-ETN,Eaton Corporation plc,133.822B,Industrials
-PH,Parker-Hannifin Corporation,119.492B,Industrials
-GD,General Dynamics Corporation,99.237B,Industrials
-NOC,Northrop Grumman Corporation,95.489B,Industrials
-UPS,"United Parcel Service, Inc.",90.701B,Industrials
-HWM,Howmet Aerospace Inc.,90.518B,Industrials
-MMM,3M Company,89.375B,Industrials
-WM,"Waste Management, Inc.",89.126B,Industrials
-TT,Trane Technologies plc,86.676B,Industrials
-EMR,Emerson Electric Co.,84.042B,Industrials
-TDG,TransDigm Group Incorporated,81.708B,Industrials
-CMI,Cummins Inc.,79.915B,Industrials
-CTAS,Cintas Corporation,78.744B,Industrials
-ITW,Illinois Tool Works Inc.,76.802B,Industrials
-JCI,Johnson Controls International plc,74.999B,Industrials
-FDX,FedEx Corporation,72.717B,Industrials
-WMT,Walmart Inc.,954.35B,Consumer Defensive
-COST,Costco Wholesale Corporation,427.802B,Consumer Defensive
-PG,The Procter & Gamble Company,338.27B,Consumer Defensive
-KO,The Coca-Cola Company,303.15B,Consumer Defensive
-PM,Philip Morris International Inc.,270.264B,Consumer Defensive
-PEP,"PepsiCo, Inc.",200.323B,Consumer Defensive
-MO,"Altria Group, Inc.",103.75B,Consumer Defensive
-MNST,Monster Beverage Corporation,76.374B,Consumer Defensive
-MDLZ,"Mondelez International, Inc.",74.065B,Consumer Defensive
-CL,Colgate-Palmolive Company,68.311B,Consumer Defensive
-TGT,Target Corporation,50.566B,Consumer Defensive
-KR,The Kroger Co.,41.875B,Consumer Defensive
-EL,The Estée Lauder Companies Inc.,41.459B,Consumer Defensive
-HSY,The Hershey Company,40.103B,Consumer Defensive
-SYY,Sysco Corporation,37.734B,Consumer Defensive
-KDP,Keurig Dr Pepper Inc.,37.239B,Consumer Defensive
-KMB,Kimberly-Clark Corporation,32.964B,Consumer Defensive
-KVUE,Kenvue Inc.,32.954B,Consumer Defensive
-DG,Dollar General Corporation,32.74B,Consumer Defensive
-ADM,Archer-Daniels-Midland Company,31.324B,Consumer Defensive
-DLTR,"Dollar Tree, Inc.",28.545B,Consumer Defensive
-KHC,The Kraft Heinz Company,27.851B,Consumer Defensive
-STZ,"Constellation Brands, Inc.",27.27B,Consumer Defensive
-GIS,"General Mills, Inc.",23.75B,Consumer Defensive
-CHD,"Church & Dwight Co., Inc.",22.073B,Consumer Defensive
-XOM,Exxon Mobil Corporation,553.753B,Energy
-CVX,Chevron Corporation,334.984B,Energy
-COP,ConocoPhillips,122.634B,Energy
-WMB,"The Williams Companies, Inc.",75.166B,Energy
-EPD,Enterprise Products Partners L.P.,71.237B,Energy
-SLB,SLB N.V.,69.811B,Energy
-KMI,"Kinder Morgan, Inc.",62.204B,Energy
-ET,Energy Transfer LP,59.569B,Energy
-MPLX,MPLX LP,57.659B,Energy
-EOG,"EOG Resources, Inc.",57.504B,Energy
-VLO,Valero Energy Corporation,56.992B,Energy
-PSX,Phillips 66,55.882B,Energy
-MPC,Marathon Petroleum Corporation,53.395B,Energy
-BKR,Baker Hughes Company,51.051B,Energy
-OKE,"ONEOK, Inc.",46.854B,Energy
-LNG,"Cheniere Energy, Inc.",45.426B,Energy
-FANG,"Diamondback Energy, Inc.",43.793B,Energy
-OXY,Occidental Petroleum Corporation,42.068B,Energy
-TRGP,Targa Resources Corp.,39.886B,Energy
-EQT,EQT Corporation,31.541B,Energy
-HAL,Halliburton Company,27.769B,Energy
-CQP,"Cheniere Energy Partners, L.P.",27.238B,Energy
-EXE,Expand Energy Corporation,23.788B,Energy
-TPL,Texas Pacific Land Corporation,23.265B,Energy
-DVN,Devon Energy Corporation,22.98B,Energy
-LIN,Linde plc,205.833B,Basic Materials
-SCCO,Southern Copper Corporation,148.215B,Basic Materials
-NEM,Newmont Corporation,125.355B,Basic Materials
-SHW,The Sherwin-Williams Company,89.219B,Basic Materials
-FCX,Freeport-McMoRan Inc.,84.303B,Basic Materials
-CRH,CRH plc,82.225B,Basic Materials
-ECL,Ecolab Inc.,78.584B,Basic Materials
-APD,"Air Products and Chemicals, Inc.",59.55B,Basic Materials
-AU,AngloGold Ashanti plc,49.999B,Basic Materials
-CTVA,"Corteva, Inc.",47.293B,Basic Materials
-VMC,Vulcan Materials Company,40.428B,Basic Materials
-NUE,Nucor Corporation,39.911B,Basic Materials
-MLM,"Martin Marietta Materials, Inc.",39.3B,Basic Materials
-STLD,"Steel Dynamics, Inc.",25.552B,Basic Materials
-PPG,"PPG Industries, Inc.",24.877B,Basic Materials
-RGLD,"Royal Gold, Inc.",22.376B,Basic Materials
-DOW,Dow Inc.,19.596B,Basic Materials
-ALB,Albemarle Corporation,19.189B,Basic Materials
-IFF,International Flavors & Fragrances Inc.,18.371B,Basic Materials
-DD,"DuPont de Nemours, Inc.",17.957B,Basic Materials
-HL,Hecla Mining Company,17.784B,Basic Materials
-RS,"Reliance, Inc.",17.042B,Basic Materials
-LYB,LyondellBasell Industries N.V.,16.387B,Basic Materials
-AA,Alcoa Corporation,15.556B,Basic Materials
-CDE,"Coeur Mining, Inc.",14.501B,Basic Materials
-WELL,Welltower Inc.,131.349B,Real Estate
-PLD,"Prologis, Inc.",123.734B,Real Estate
-AMT,American Tower Corporation,85.957B,Real Estate
-EQIX,"Equinix, Inc.",78.728B,Real Estate
-SPG,"Simon Property Group, Inc.",69.753B,Real Estate
-DLR,"Digital Realty Trust, Inc.",57.212B,Real Estate
-O,Realty Income Corporation,56.39B,Real Estate
-PSA,Public Storage,51.567B,Real Estate
-CBRE,"CBRE Group, Inc.",51.064B,Real Estate
-CCI,Crown Castle Inc.,39.572B,Real Estate
-VTR,"Ventas, Inc.",36.851B,Real Estate
-EXR,Extra Space Storage Inc.,32.99B,Real Estate
-VICI,VICI Properties Inc.,30.974B,Real Estate
-IRM,Iron Mountain Incorporated,28.356B,Real Estate
-CSGP,"CoStar Group, Inc.",27.693B,Real Estate
-AVB,"AvalonBay Communities, Inc.",25.974B,Real Estate
-EQR,Equity Residential,24.417B,Real Estate
-SBAC,SBA Communications Corporation,20.685B,Real Estate
-WY,Weyerhaeuser Company,19.524B,Real Estate
-ESS,"Essex Property Trust, Inc.",17.838B,Real Estate
-INVH,Invitation Homes Inc.,16.95B,Real Estate
-JLL,Jones Lang LaSalle Incorporated,16.849B,Real Estate
-SUI,"Sun Communities, Inc.",16.753B,Real Estate
-NLY,"Annaly Capital Management, Inc.",16.666B,Real Estate
-MAA,"Mid-America Apartment Communities, Inc.",16.455B,Real Estate
-NEE,"NextEra Energy, Inc.",174.169B,Utilities
-CEG,Constellation Energy Corporation,111.48B,Utilities
-SO,The Southern Company,97.888B,Utilities
-DUK,Duke Energy Corporation,92.713B,Utilities
-AEP,"American Electric Power Company, Inc.",64.21B,Utilities
-SRE,Sempra,60.406B,Utilities
-VST,Vistra Corp.,56.448B,Utilities
-D,"Dominion Energy, Inc.",52.2B,Utilities
-EXC,Exelon Corporation,45.177B,Utilities
-XEL,Xcel Energy Inc.,44.728B,Utilities
-ETR,Entergy Corporation,43.061B,Utilities
-PEG,Public Service Enterprise Group Incorporated,39.643B,Utilities
-ED,"Consolidated Edison, Inc.",37.469B,Utilities
-WEC,"WEC Energy Group, Inc.",35.324B,Utilities
-PCG,PG&E Corporation,34.309B,Utilities
-NRG,"NRG Energy, Inc.",29.411B,Utilities
-DTE,DTE Energy Company,28.143B,Utilities
-AEE,Ameren Corporation,28.131B,Utilities
-ATO,Atmos Energy Corporation,27.573B,Utilities
-FE,FirstEnergy Corp.,27.347B,Utilities
-PPL,PPL Corporation,27.245B,Utilities
-ES,Eversource Energy,26.305B,Utilities
-AWK,"American Water Works Company, Inc.",26.025B,Utilities
-CNP,"CenterPoint Energy, Inc.",25.925B,Utilities
-EIX,Edison International,24.01B,Utilities
+code,name,plate,sector,market_cap
+LIN,林德气体,特殊化工用品,Basic Materials,205.833B
+SHW,宣伟公司,特殊化工用品,Basic Materials,89.219B
+SCCO,南方铜业,铜,Basic Materials,148.215B
+NEM,纽曼矿业,黄金,Basic Materials,125.355B
+CRH,CRH水泥,建筑材料,Basic Materials,82.225B
+CMCSA,康卡斯特,电信服务,Communication Services,109.643B
+CHTR,特许通讯,电信服务,Communication Services,25.92B
+AMT,美国电塔,电信服务,Communication Services,85.957B
+TMUS,T-Mobile US,电信服务,Communication Services,209.688B
+ORLY,奥莱利,汽车零件,Consumer Cyclical,80.105B
+DASH,DoorDash,互联网零售,Consumer Cyclical,88.493B
+ABNB,爱彼迎,旅游服务,Consumer Cyclical,79.995B
+SBUX,星巴克,餐厅,Consumer Cyclical,105.739B
+TSLA,特斯拉,汽车制造,Consumer Cyclical,1.455T
+AMZN,亚马逊,互联网零售,Consumer Cyclical,2.556T
+BKNG,Booking Holdings,旅游服务,Consumer Cyclical,165.806B
+MELI,MercadoLibre,互联网零售,Consumer Cyclical,105.197B
+EA,艺电,电子游戏与多媒体,Consumer Cyclical,51.084B
+ROST,罗斯百货,服装零售,Consumer Cyclical,62.561B
+WBD,Warner Bros Discovery,娱乐,Consumer Cyclical,70.846B
+APP,Applovin,广告代理,Consumer Cyclical,192.383B
+PDD,拼多多,互联网零售,Consumer Cyclical,
+MAR,万豪酒店,住宿,Consumer Cyclical,88.463B
+WMT,沃尔玛,折扣店,Consumer Defensive,954.35B
+KDP,Keurig Dr Pepper,非酒精饮料,Consumer Defensive,37.239B
+PEP,百事可乐,非酒精饮料,Consumer Defensive,200.323B
+CCEP,可口可乐欧洲太平洋,非酒精饮料,Consumer Defensive,
+COST,好市多,折扣店,Consumer Defensive,427.802B
+KHC,卡夫亨氏,包装食品,Consumer Defensive,27.851B
+MDLZ,亿滋,糖果,Consumer Defensive,74.065B
+MNST,怪物饮料,非酒精饮料,Consumer Defensive,76.374B
+WMB,威廉姆斯,油气中游,Energy,75.166B
+EOG,EOG能源,油气勘探与开发,Energy,57.504B
+MPC,马拉松原油,油气炼制与销售,Energy,53.395B
+BKR,Baker Hughes,油气设备与服务,Energy,51.051B
+FANG,Diamondback Energy,油气勘探与开发,Energy,43.793B
+PGR,前进保险,保险,Financial Services,118.629B
+CB,安达保险,保险,Financial Services,119.914B
+KKR,KKR,资产管理,Financial Services,121.685B
+IBKR,盈透证券,资本市场,Financial Services,124.707B
+BX,黑石,资产管理,Financial Services,200.624B
+V,Visa,信贷,Financial Services,633.585B
+HOOD,Robinhood,资本市场,Financial Services,97.778B
+BRK.B,伯克希尔-B,多元化保险,Financial Services,1.064T
+JPM,摩根大通,多元化银行,Financial Services,1.05T
+PYPL,PayPal,信贷,Financial Services,
+AMGN,安进,一般药品制造商,Healthcare,177.919B
+DXCM,德康医疗,医疗设备,Healthcare,
+ISRG,直觉外科公司,医疗设备和用品,Healthcare,191.809B
+GILD,吉利德科学,一般药品制造商,Healthcare,154.989B
+GEHC,GE HealthCare Technologies,医疗设备,Healthcare,
+IDXX,爱德士,诊断与研究,Healthcare,
+INSM,Insmed,生物技术,Healthcare,
+VRTX,福泰制药,生物技术,Healthcare,113.161B
+ALNY,阿里拉姆制药,生物技术,Healthcare,
+REGN,再生元制药公司,生物技术,Healthcare,77.693B
+FAST,快扣,工业分销,Industrials,
+CTAS,信达思,专业商务服务,Industrials,78.744B
+AXON,Axon Enterprise,航空航天与国防,Industrials,
+HON,霍尼韦尔,综合企业,Industrials,147.891B
+VRSK,Verisk分析,咨询服务,Industrials,
+CSX,CSX运输,铁路运输,Industrials,
+PCAR,帕卡,农业和重型机械,Industrials,
+ODFL,Old Dominion Freight Line,货运,Industrials,
+TRI,汤森路透,专业商务服务,Industrials,
+CPRT,科帕特,专业商务服务,Industrials,
+CSGP,科斯塔,房地产服务,Real Estate,27.693B
+FER,Ferrovial SE,建筑工程,Real Estate,
+ESS,埃塞克斯信托,房地产服务,Real Estate,17.838B
+DLR,数字房地产信托公司,房地产服务,Real Estate,57.212B
+VICI,VICI Properties,房地产服务,Real Estate,30.974B
+SPG,西蒙地产,房地产服务,Real Estate,69.753B
+CDNS,铿腾电子,应用软件,Technology,
+LRCX,泛林集团,半导体设备与材料,Technology,281.16B
+AVGO,博通,半导体,Technology,1.668T
+ASML,阿斯麦,半导体设备与材料,Technology,
+ARM,Arm Holdings,半导体,Technology,
+CRWD,CrowdStrike,软件基础设施,Technology,
+CSCO,思科,通讯设备,Technology,297.083B
+NVDA,英伟达,半导体,Technology,4.531T
+CTSH,高知特,信息技术服务,Technology,
+MSTR,Strategy,应用软件,Technology,
+MPWR,Monolithic Power Systems,半导体,Technology,
+MRVL,迈威尔科技,半导体,Technology,
+AMD,美国超微公司,半导体,Technology,377.429B
+MCHP,微芯科技,半导体,Technology,
+DDOG,Datadog,应用软件,Technology,
+ZS,Zscaler,软件基础设施,Technology,
+INTU,财捷,应用软件,Technology,151.809B
+INTC,英特尔,半导体,Technology,224.152B
+GOOGL,谷歌-A,互联网内容与信息,Technology,
+FTNT,飞塔信息,软件基础设施,Technology,
+KLAC,科磊,半导体设备与材料,Technology,206.458B
+MSFT,微软,软件基础设施,Technology,3.418T
+AMAT,应用材料,半导体设备与材料,Technology,260.51B
+ADI,亚德诺,半导体,Technology,146.99B
+ADP,自动数据处理,应用软件,Technology,
+GOOG,谷歌-C,互联网内容与信息,Technology,3.988T
+TTWO,Take-Two互动软件,电子游戏与多媒体,Technology,44.373B
+META,Meta Platforms,互联网内容与信息,Technology,1.563T
+NFLX,奈飞,娱乐,Technology,372.884B
+NXPI,恩智浦,半导体,Technology,
+PANW,Palo Alto Networks,软件基础设施,Technology,
+PAYX,沛齐,应用软件,Technology,
+TEAM,Atlassian,应用软件,Technology,
+ADSK,欧特克,应用软件,Technology,
+QCOM,高通,半导体,Technology,172.014B
+STX,希捷科技,计算机硬件,Technology,
+WDAY,Workday,应用软件,Technology,
+SNPS,新思科技,软件基础设施,Technology,
+SHOP,Shopify,应用软件,Technology,202.84B
+PLTR,Palantir,软件基础设施,Technology,407.496B
+WDC,西部数据,计算机硬件,Technology,
+ROP,儒博实业,应用软件,Technology,
+AAPL,苹果,消费电子产品,Technology,3.776T
+MU,美光科技,半导体,Technology,408.278B
+ADBE,Adobe,应用软件,Technology,
+TXN,德州仪器,半导体,Technology,174.173B
+CEG,Constellation Energy,独立电力生产商,Utilities,111.48B
+XEL,埃克西尔能源,受监管电力,Utilities,44.728B
+AEP,美国电力,受监管电力,Utilities,64.21B
+EXC,爱克斯龙电力,受监管电力,Utilities,45.177B
