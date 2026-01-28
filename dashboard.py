@@ -119,7 +119,7 @@ def get_last_n_trading_days_predictions(n, preds_set:dict):
     preds_df_comb = []
     for ticker, pred_df in preds_set.items():
         pred_df['code'] = ticker
-        preds_df_comb.append(pred_df.iloc[-n:])
+        preds_df_comb.append(pred_df)
     comb = pd.concat(preds_df_comb, axis=0)
     predictions_list = []
     dates_list = []
@@ -449,7 +449,7 @@ with col1:
         with st.spinner("Fetching predictions for all stocks..."):
             # Get predictions for last 3 trading days
             preds_comb_df = get_batch_predictions(trader)
-            predictions_list, dates_list = get_last_n_trading_days_predictions(3, preds_comb_df)
+            predictions_list, dates_list = get_last_n_trading_days_predictions(3, preds_comb_df)            
             st.session_state.predictions_pool = preds_comb_df
             
             if len(predictions_list) == 3:
