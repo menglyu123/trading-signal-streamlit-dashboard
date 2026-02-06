@@ -9,6 +9,7 @@ from enum import Enum
 from datetime import datetime, timedelta
 import time
 import requests
+from futu import *
 
 import alpaca_trade_api as tradeapi
 
@@ -50,7 +51,66 @@ def get_price_from_alpaca_requests(symbol, start:datetime, end:datetime, interva
     return response
     
 
+def get_hk_market_code_pool():
+    ## ******* get HSI constituent stocks for HK market using futu api *******
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    hsi_plate_code = 'HK.800000' # Confirm this is the correct HSI code
+    ret, data = quote_ctx.get_plate_stock(hsi_plate_code)
+    code_list = data.code.apply(lambda x: x[-4:]).to_list()
 
+    # code_list = pd.read_csv('./data/50hk.csv')['code'].astype(str).str.zfill(4).to_list()
+    code_list.remove('0823')
+    # code_list100 = pd.read_csv('./data/code_pool_hk.csv')['code'].astype(str).str.zfill(4).to_list()
+    # print(set(code_list)-set(code_list100))
+    # 2. Define your stock code (e.g., for Tencent on HK market)
+    stock_code = ['HK.0'+code for code in code_list] # Example: Tencent Holdings
+    market = Market.HK
+    security_type = SecurityType.STOCK
+
+    # 3. Call get_stock_basicinfo
+    ret, basic_data = quote_ctx.get_stock_basicinfo(market, security_type, stock_code)
+
+    ret, plate_data = quote_ctx.get_owner_plate(stock_code)
+    plate_data = plate_data[plate_data.plate_type=='INDUSTRY']#['plate_name'].to_list()
+
+    ret, data = quote_ctx.get_market_snapshot(data.code.to_list())
+
+    if ret == RET_OK:
+        market_data = data[['code','name','total_market_val']].sort_values(by='total_market_val',ascending=False)
+    else:
+        print('error:', data)
+    tmp= plate_data[['code','name','plate_name']].merge(market_data, on = ['code','name'])
+    tmp.rename(columns={'plate_name':'plate','total_market_val':'market_cap'}, inplace=True)
+    sector_df = pd.read_csv('./data/code_pool_hk.csv')[['name','plate','sector']]
+    tmp = tmp.merge(sector_df, on =['name','plate'],how='left')
+    tmp['code'] = tmp.code.apply(lambda x: x[-4:])
+    tmp.to_csv('./data/code_pool_hk_updated.csv',index=False)
+    return 
+
+def get_us_market_code_pool():
+    ## ******* get SPX 500 constituent stocks for US market using futu api *******
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    index_plate_code = 'US..SPX' # Confirm this is the correct HSI code
+    ret, data = quote_ctx.get_plate_stock(index_plate_code)
+    code_list = data.code.to_list()
+
+    plate_data = []
+    ret, data = quote_ctx.get_owner_plate(code_list[:200])
+    plate_data.append(data[data.plate_type=='INDUSTRY'][['code','name','plate_name']])
+    ret, data = quote_ctx.get_owner_plate(code_list[200:400])
+    plate_data.append(data[data.plate_type=='INDUSTRY'][['code','name','plate_name']])
+    ret, data = quote_ctx.get_owner_plate(code_list[400:600])
+    plate_data.append(data[data.plate_type=='INDUSTRY'][['code','name','plate_name']])
+
+    tmp = pd.concat(plate_data)
+    tmp.rename(columns={"plate_name":"plate"},inplace=True)
+    tmp['code'] = tmp.code.apply(lambda x: x[3:])
+
+    us_300 = pd.read_csv('./data/code_pool_us_275.csv') #top 25 highest market cap stocks for each sector. Scraped from yahoo finance
+    df = us_300.merge(tmp, on="code")
+    df.rename(columns={"name_x":"name","name_y":"name_chinese"},inplace=True)
+    df.to_csv('./data/code_pool_us.csv',index=False)
+    return
 
 
 
