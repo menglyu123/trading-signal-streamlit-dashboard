@@ -21,9 +21,6 @@ def _trend_flags(result_df: pd.DataFrame, period: int):
         return False
     if len(result_df) < max(3, period + 2):
         return False
-    required = {"EMA_5", "EMA_10", "EMA_20", "EMA_60"}
-    if not required.issubset(set(result_df.columns)):
-        return False
 
     ema5_change = result_df["EMA_5"].pct_change(1).iloc[-period:]
     is_ema5_mostly_up = (ema5_change.lt(0).sum() <= round(period * 0.2))
@@ -321,7 +318,7 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
         axes = [ax1, ax2, ax3]
         data_list = [predictions_df_2days_ago, predictions_df_yesterday, predictions_df]
         min_sector_value, max_sector_value = 0, 0
-        
+        prev_sector_values = [0]*len(sorted_sectors)
         for ax, df, date in zip(axes, data_list, dates):
             if df is None or df.empty:
                 ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
@@ -340,6 +337,8 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
             
             # Align sectors with sorted order
             sector_values = [sector_avg.get(s, 0) for s in sorted_sectors]
+            diff = [val-prev_val for val, prev_val in zip(sector_values, prev_sector_values)]
+            prev_sector_values = sector_values
             min_sector_value = min(min_sector_value, min(sector_values))
             max_sector_value = max(max_sector_value, max(sector_values))
             colors = ['green' if val >= 0 else 'gray' for val in sector_values]
@@ -350,13 +349,26 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
             ax.set_title(f'{date}' if date else 'Average Prediction by Sector', fontsize = 16)
             
             # Add value labels
-            for idx, val in enumerate(sector_values):
-                if val != 0:  # Only label non-zero values
-                    offset = 0.01 if val >= 0 else -0.01
-                    ax.text(val + offset, idx, f'{val:.3f}',
-                           va='center',
-                           ha='left' if val >= 0 else 'right',
-                           fontsize=16)
+            if date == dates[-1]:
+                for idx, val in enumerate(sector_values):
+                    if val != 0:  # Only label non-zero values
+                        offset = 0.01 if val >= 0 else -0.01
+                        diff_show = '+'+ str(diff[idx].round(2)) if diff[idx]>0 else '-'+ str(-diff[idx].round(2))
+                        ax.text(val + offset, idx, f'{val:.3f} ({diff_show})',
+                            va='center',
+                            ha='left' if val >= 0 else 'right',
+                            fontsize=16)  
+            else:
+                for idx, val in enumerate(sector_values):
+                    if val != 0:  # Only label non-zero values
+                        offset = 0.01 if val >= 0 else -0.01
+                        ax.text(val + offset, idx, f'{val:.3f}',
+                               va='center',
+                               ha='left' if val >= 0 else 'right',
+                               fontsize=16)
+
+
+                    
         
         # Only show y-axis labels on the leftmost plot
            # Set the x-limits based on min and max values
@@ -527,7 +539,7 @@ else:
     # Only need trend period and a button
     trend_pattern_period = st.slider(
         "Trend Pattern Period (days)",
-        min_value=10,
+        min_value=5,
         max_value=60,
         value=20,
         step=1,
