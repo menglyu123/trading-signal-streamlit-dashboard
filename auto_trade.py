@@ -23,6 +23,10 @@ def get_pred_df(df, winlen):
         cdf['EMA_20'] = pta.ema(cdf.close, 20)
         cdf['EMA_30'] = pta.ema(cdf.close, 30)
         cdf['EMA_60'] = pta.ema(cdf.close, 60)
+        
+        # Add price change in recent two days
+        cdf['price_change_today'] = round(cdf.close.pct_change(), 3)
+        cdf['price_change_yesterday'] = round(cdf.close.shift(1)/cdf.close.shift(2)-1, 3) 
 
         # Add uptrend
         cdf['uptrend'] = (cdf.EMA_10> cdf.EMA_10.shift(1))&(cdf.EMA_20> cdf.EMA_20.shift(1))

@@ -23,9 +23,9 @@ def _trend_flags(result_df: pd.DataFrame, period: int):
         return False
 
     ema5_change = result_df["EMA_5"].pct_change(1).iloc[-period:]
-    is_ema5_mostly_up = (ema5_change.lt(0).sum() <= round(period * 0.2))
+    is_ema5_mostly_up = (ema5_change.lt(0).sum() <= round(period * 0.3))
     is_ema5_mostly_greater_ema10 = (
-        (result_df.iloc[-period:]["EMA_5"] < result_df.iloc[-period:]["EMA_10"]).sum() <= round(period * 0.1)
+        (result_df.iloc[-period:]["EMA_5"] < result_df.iloc[-period:]["EMA_10"]).sum() <= round(period * 0.2)
     )
     is_ema10_above_ema20 = bool(result_df.iloc[-1]["EMA_10"] > result_df.iloc[-1]["EMA_20"])
     is_ema20_above_ema60 = bool(result_df.iloc[-1]["EMA_20"] > result_df.iloc[-1]["EMA_60"])
@@ -67,7 +67,7 @@ def save_watchlist(market: str, tickers):
 
 def get_batch_predictions(trader, from_date=None)->dict:
     """
-    Get predictions for the last 500 trading days
+    Get predictions given the last 500 trading days market data
     Returns a tuple of (predictions_list, dates_list)
     """
     if from_date is None:
@@ -367,9 +367,6 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
                                ha='left' if val >= 0 else 'right',
                                fontsize=16)
 
-
-                    
-        
         # Only show y-axis labels on the leftmost plot
            # Set the x-limits based on min and max values
         ax1.set_xlim(min_sector_value, max_sector_value)
@@ -398,6 +395,7 @@ def build_sector_distribution_three_days(predictions_df, predictions_df_yesterda
     except Exception as e:
         print(f"Sector chart error: {e}")
         return None
+
 
 # Initialize Signal_Model
 @st.cache_resource
@@ -440,6 +438,8 @@ if 'histogram_image' not in st.session_state:
     st.session_state.histogram_image = None
 if 'sector_chart' not in st.session_state:
     st.session_state.sector_chart = None
+if 'index_prediction_plot' not in st.session_state:
+    st.session_state.index_prediction_plot = None
 if 'update_clicked' not in st.session_state:
     st.session_state.update_clicked = False
 if 'dates_list' not in st.session_state:
@@ -485,7 +485,20 @@ with col1:
                     )
             else:
                 st.error("Could not fetch predictions for all three trading days. Please try again later.")
-               
+            
+            current_date = dt.date.today()
+            start_date = current_date - dt.timedelta(days=trader.winlen+60+20+500)
+            # Download US market data
+            if trader.market == Market.US.name:  
+                code = 'SPY'
+                df = download_alpaca_daily_data(code, start_date, current_date)
+            # Download HK market data
+            if trader.market == Market.HK.name:
+                code = 'HSI'
+                df = download_futu_historical_daily_data('HK.800000', start_date, current_date)
+            print('predict HSI')
+            bdf = trader.add_signal_cols(df)
+            st.session_state.index_prediction_plot = plot_single(code, bdf)
             st.session_state.update_clicked = False
 with col2:
     if st.session_state.last_update:
@@ -500,6 +513,10 @@ if st.session_state.histogram_image is not None:
 # Display sector charts
 if st.session_state.sector_chart is not None:
     st.image(st.session_state.sector_chart)
+
+# Display sector charts
+if st.session_state.index_prediction_plot is not None:
+    st.image(st.session_state.index_prediction_plot)
 
 # Display top 20 breakthrough tickers
 if st.session_state.predictions_df is not None:
