@@ -8,7 +8,7 @@ CMCSA,康卡斯特,电信服务,Communication Services,109.643B
 CHTR,特许通讯,电信服务,Communication Services,25.92B
 AMT,美国电塔,电信服务,Communication Services,85.957B
 TMUS,T-Mobile US,电信服务,Communication Services,209.688B
-ORLY,奥莱利,汽车零件,Consumer Cyclical,80.105B
+LITE,Lumentum,通讯设备,Communication Services,
 DASH,DoorDash,互联网零售,Consumer Cyclical,88.493B
 ABNB,爱彼迎,旅游服务,Consumer Cyclical,79.995B
 SBUX,星巴克,餐厅,Consumer Cyclical,105.739B
@@ -16,7 +16,6 @@ TSLA,特斯拉,汽车制造,Consumer Cyclical,1.455T
 AMZN,亚马逊,互联网零售,Consumer Cyclical,2.556T
 BKNG,Booking Holdings,旅游服务,Consumer Cyclical,165.806B
 MELI,MercadoLibre,互联网零售,Consumer Cyclical,105.197B
-EA,艺电,电子游戏与多媒体,Consumer Cyclical,51.084B
 ROST,罗斯百货,服装零售,Consumer Cyclical,62.561B
 WBD,Warner Bros Discovery,娱乐,Consumer Cyclical,70.846B
 APP,Applovin,广告代理,Consumer Cyclical,192.383B
@@ -107,6 +106,7 @@ TEAM,Atlassian,应用软件,Technology,
 ADSK,欧特克,应用软件,Technology,
 QCOM,高通,半导体,Technology,172.014B
 STX,希捷科技,计算机硬件,Technology,
+SNDK,闪迪,计算机硬件,Technology,
 WDAY,Workday,应用软件,Technology,
 SNPS,新思科技,软件基础设施,Technology,
 SHOP,Shopify,应用软件,Technology,202.84B
@@ -115,9 +115,13 @@ WDC,西部数据,计算机硬件,Technology,
 ROP,儒博实业,应用软件,Technology,
 AAPL,苹果,消费电子产品,Technology,3.776T
 MU,美光科技,半导体,Technology,408.278B
-ADBE,Adobe,应用软件,Technology,
+ADBE,Adobe,应用软件,Technology,105.94B
 TXN,德州仪器,半导体,Technology,174.173B
+PL,Planet Labs PBC,航空航天与国防,Technology,17.139B
+RKLB,Rocket Lab,航空航天与国防,Technology,71.386B
+IBM,IBM Corp,信息技术服务,Technology,309.438B
 CEG,Constellation Energy,独立电力生产商,Utilities,111.48B
 XEL,埃克西尔能源,受监管电力,Utilities,44.728B
 AEP,美国电力,受监管电力,Utilities,64.21B
 EXC,爱克斯龙电力,受监管电力,Utilities,45.177B
+

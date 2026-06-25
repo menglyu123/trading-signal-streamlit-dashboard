@@ -10,8 +10,24 @@ import matplotlib.pyplot as plt
 import io, time
 import numpy as np
 from data.import_data import Market, download_futu_historical_daily_data, download_alpaca_daily_data
+import futu
 
 WATCHLIST_DIR =  "./data"
+
+def get_current_portfolio(market:str):
+    #trd_ctx = futu.OpenSecTradeContext(filter_trdmarket=market, host='127.0.0.1', port=11111, security_firm=futu.SecurityFirm.FUTUSECURITIES)
+    with futu.OpenSecTradeContext(
+        filter_trdmarket=market,
+        host='127.0.0.1',
+        port=11111,
+        security_firm=futu.SecurityFirm.FUTUSECURITIES
+    ) as trd_ctx:
+        ret, positions_df = trd_ctx.position_list_query()
+        if ret == futu.RET_OK and positions_df is not None and positions_df.shape[0] > 0:
+            return positions_df['code'].astype(str).tolist()
+        if ret != futu.RET_OK:
+            print('position_list_query error: ', positions_df)
+    return []
 
 def _trend_flags(result_df: pd.DataFrame, period: int):
     """
@@ -24,9 +40,7 @@ def _trend_flags(result_df: pd.DataFrame, period: int):
 
     ema5_change = result_df["EMA_5"].pct_change(1).iloc[-period:]
     is_ema5_mostly_up = (ema5_change.lt(0).sum() <= round(period * 0.3))
-    is_ema5_mostly_greater_ema10 = (
-        (result_df.iloc[-period:]["EMA_5"] < result_df.iloc[-period:]["EMA_10"]).sum() <= round(period * 0.2)
-    )
+    is_ema5_mostly_greater_ema10 = (result_df.iloc[-period:]["EMA_5"] < result_df.iloc[-period:]["EMA_10"]).sum() <= round(period * 0.2)
     is_ema10_above_ema20 = bool(result_df.iloc[-1]["EMA_10"] > result_df.iloc[-1]["EMA_20"])
     is_ema20_above_ema60 = bool(result_df.iloc[-1]["EMA_20"] > result_df.iloc[-1]["EMA_60"])
 
@@ -64,6 +78,57 @@ def save_watchlist(market: str, tickers):
     with open(path, "w") as fh:
         fh.write("\n".join(tickers))
     return path
+
+def update_watchlist_with_buy_signals(trader, predictions_pool, predictions_df, market):
+    """
+    Update watchlist with all stocks that have buy signals.
+    Buy signals are identified by:
+    1. prediction > 0.5
+    2. EMA_60 / close > 1.1 (down_deep condition)
+    3. Strong up_strength (>= 0.8)
+    """
+    buy_signal_codes = []
+    
+    if predictions_df is None or predictions_df.empty:
+        return buy_signal_codes
+    
+    # Get buy signals based on multiple criteria
+    for ticker in predictions_df.index:
+        try:
+            ticker_pred_df = predictions_pool.get(ticker)
+            if ticker_pred_df is None or ticker_pred_df.empty:
+                continue
+            
+            # Get latest data point
+            latest = ticker_pred_df.iloc[-1]
+            
+            # Criteria 1: prediction > 0.5
+            has_positive_prediction = latest.get('prediction', 0) > 0.5
+            
+            # Criteria 2: down_deep condition (EMA_60 / close > 1.1)
+            ema_60 = latest.get('EMA_60', 0)
+            close_price = latest.get('close', 0)
+            is_down_deep = (close_price > 0) and (ema_60 / close_price > 1.1)
+            
+            # Criteria 3: Strong uptrend (up_strength >= 0.8 and uptrend = True)
+            up_strength = latest.get('up_strength', 0)
+            uptrend = latest.get('uptrend', False)
+            has_strong_uptrend = (up_strength >= 0.8) and (uptrend == True)
+            
+            # Combine criteria: any strong signal qualifies
+            if has_positive_prediction or is_down_deep or has_strong_uptrend:
+                buy_signal_codes.append(ticker)
+        except Exception as e:
+            continue
+    
+    # Remove duplicates while preserving order
+    buy_signal_codes = list(dict.fromkeys(buy_signal_codes))
+    
+    # Save to watchlist
+    if buy_signal_codes:
+        save_watchlist(market, buy_signal_codes)
+    
+    return buy_signal_codes
 
 def get_batch_predictions(trader, from_date=None)->dict:
     """
@@ -444,6 +509,8 @@ if 'update_clicked' not in st.session_state:
     st.session_state.update_clicked = False
 if 'dates_list' not in st.session_state:
     st.session_state.dates_list = None
+if 'index_prediction_df' not in st.session_state:
+    st.session_state.index_prediction_df = None
 
 st.title(f"{market_choice} Stock Market Analysis Dashboard")
 
@@ -496,8 +563,8 @@ with col1:
             if trader.market == Market.HK.name:
                 code = 'HSI'
                 df = download_futu_historical_daily_data('HK.800000', start_date, current_date)
-            print('predict HSI')
             bdf = trader.add_signal_cols(df)
+            st.session_state.index_prediction_df = bdf
             st.session_state.index_prediction_plot = plot_single(code, bdf)
             st.session_state.update_clicked = False
 with col2:
@@ -582,6 +649,124 @@ else:
                 st.info("No tickers in the code pool passed the trend conditions.")
             else:
                 show_batch_plots(passing, sector_df, with_lookback_slider=False)
+
+
+
+### *************************** Extract tickers with BUY/SELL signals *************************
+data_df = st.session_state.predictions_df
+#data_df_yesterday = st.session_state.predictions_df_yesterday
+if data_df is not None:
+    # Categorize buy signals
+    breakthrough_signals = []
+    strong_potential_signals = []
+    pullback_end_signals = []
+    all_buy_signals = []
+    sell_signals = []
+    
+    # Get index prediction (SPY or HSI)
+    index_prediction = None
+    if st.session_state.index_prediction_df is not None:
+        if 'prediction' in st.session_state.index_prediction_df.columns:
+            index_prediction = st.session_state.index_prediction_df.iloc[-1]['prediction']
+    
+    # ===== BUY SIGNALS =====
+    # Category 1: Significant Breakthrough - Top 10 tickers ranked by 'accel' with prediction >= 1
+    if 'accel' in data_df.columns and 'prediction' in data_df.columns:
+        qualified_high_pred = data_df[data_df['prediction'] >= 1]
+        if not qualified_high_pred.empty:
+            breakthrough_signals = qualified_high_pred.nlargest(10, 'accel').index.tolist()
+            all_buy_signals.extend(breakthrough_signals)
+    
+    # Category 2: Pullback End - Tickers matching the 20-day trend pattern and accel > 0
+    if 'accel' in data_df.columns and st.session_state.predictions_pool is not None:
+        for ticker, ticker_pred_df in st.session_state.predictions_pool.items():
+            try:
+                recent_df = ticker_pred_df[ticker_pred_df.date >= dt.date.today() - dt.timedelta(days=500)]
+                if _trend_flags(recent_df, 20):
+                    if ticker in data_df.index and data_df.loc[ticker, 'accel'] > 0 and data_df.loc[ticker, 'price_change_yesterday']<0 and data_df.loc[ticker, 'price_change_today']>0:
+                        pullback_end_signals.append(ticker)
+            except Exception:
+                continue
+        all_buy_signals.extend(pullback_end_signals)
+    
+    # Category 3: Strong Up Potential - Tickers with up_strength ==1
+    if 'up_strength' in data_df.columns:
+        strong_potential_signals = data_df[data_df['up_strength'] == 1].index.tolist()
+        all_buy_signals.extend(strong_potential_signals)
+    
+    # Remove duplicates while preserving order
+    all_buy_signals = list(dict.fromkeys(all_buy_signals))
+
+    # Get current portfolio holdings from Futu API
+    portfolio_tickers = []
+    try:
+        raw_portfolio_codes = get_current_portfolio(market_choice)
+        for code in raw_portfolio_codes:
+            normalized = code.split('.')[-1] if '.' in code else code
+            if normalized in data_df.index:
+                portfolio_tickers.append(normalized)
+            elif normalized[-4:] in data_df.index:
+                portfolio_tickers.append(normalized[-4:])
+            elif normalized.lstrip('0') in data_df.index:
+                portfolio_tickers.append(normalized.lstrip('0'))
+        portfolio_tickers = list(dict.fromkeys(portfolio_tickers))
+    except Exception:
+        portfolio_tickers = []
+    
+    # ===== SELL SIGNALS =====
+    # Sell signal 1: SPY/HSI prediction < 0 - sell all portfolio positions
+    if index_prediction is not None and index_prediction < 0:
+        sell_signals.extend(portfolio_tickers)
+    
+    # Sell signal 2: Individual portfolio ticker prediction < 0
+    if 'prediction' in data_df.columns and portfolio_tickers:
+        negative_pred_signals = [ticker for ticker in portfolio_tickers
+                                 if ticker in data_df.index and data_df.loc[ticker, 'prediction'] < 0]
+        sell_signals.extend(negative_pred_signals)
+    
+    # Remove duplicates
+    sell_signals = list(dict.fromkeys(sell_signals))
+
+    # Display BUY signals by category
+    st.subheader("BUY Signals")
+
+    col_buy1, col_buy2, col_buy3 = st.columns(3)
+
+    with col_buy1:
+        st.markdown("**🚀 Significant Breakthrough**")
+        if breakthrough_signals:
+            st.write(f"**{len(breakthrough_signals)} signal(s)**")
+            st.write(", ".join(breakthrough_signals))
+        else:
+            st.write("No signals")
+
+    with col_buy2:
+        st.markdown("**� Trend Pullback End**")
+        if pullback_end_signals:
+            st.write(f"**{len(pullback_end_signals)} signal(s)**")
+            st.write(", ".join(pullback_end_signals))
+        else:
+            st.write("No signals")
+
+    with col_buy3:
+        st.markdown("**📈 Strong Up Potential**")
+        if strong_potential_signals:
+            st.write(f"**{len(strong_potential_signals)} signal(s)**")
+            st.write(", ".join(strong_potential_signals))
+        else:
+            st.write("No signals")
+
+    st.divider()
+
+    # Display summary and SELL signals
+    st.subheader("Portfolio SELL signals")
+    if sell_signals:
+        st.write(f"**Count: {len(sell_signals)}** | " + ", ".join(sell_signals))
+        if index_prediction is not None:
+            st.caption(f"📊 Index Prediction: {index_prediction:.4f} {'(Below 0 - Sell all)' if index_prediction < 0 else ''}")
+    else:
+        st.write("No sell signals")
+
 
 
 
@@ -673,6 +858,7 @@ else:
                         st.warning(f"{code} is not in the watch list.")
 
         with col_watch_plots:
+            watchlist = all_buy_signals
             if not watchlist:
                 st.info("Add stocks to the watch list to see their backtests.")
             else:

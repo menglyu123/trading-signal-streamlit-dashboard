@@ -99,3 +99,4 @@ ON
 GFS
 TTD
 CDW
+COIN

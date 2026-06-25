@@ -1,6 +1,6 @@
 code,name,plate,sector,market_cap
 1378,中国宏桥,铝,Basic Materials,362727487864.28
-2899,紫金矿业,黄金及贵金属,Basic Materials,1088051880088.8
+2259,紫金黄金国际,黄金及贵金属,Basic Materials,5.850478e+11
 1208,五矿资源(铜锌钴金银钼铅),铜,Basic Materials,113.27 B HKD
 2788,创新实业(电解铝氧化铝),铝,Basic Materials,56.61 B HKD
 0323,马鞍山钢铁股份,钢铁,Basic Materials,31.79 B HKD
@@ -12,6 +12,7 @@ code,name,plate,sector,market_cap
 0941,中国移动,电讯服务,Communication Services,1714252843670.4
 0728,中国电信,电讯服务,Communication Services,469431621525.87
 1045,亚太卫星,卫星及无线通讯,Communication Services,3.825719e+09
+6869,长飞光纤光缆,电讯网路基建设施,Communication Services,1.087039e+11
 1928,金沙中国有限公司,赌场及博彩,Consumer Cyclical,148918184014.4
 1929,周大福,其他零售商,Consumer Cyclical,135248390466.0
 2015,理想汽车-W,汽车,Consumer Cyclical,127073203682.4
@@ -41,23 +42,24 @@ code,name,plate,sector,market_cap
 0857,中国石油股份,油气生产商,Energy,1537376213671.2
 0883,中国海洋石油,油气生产商,Energy,1054214379365.12
 0968,信义光能,新能源物料,Energy,28996128259.55
+3800,协鑫科技,新能源物料,Energy,3.919543e+10
 0386,中国石油化工股份,油气生产商,Energy,602209060825.56
 3337,安东油田服务,油气设备与服务,Energy,2.63 B HKD
 0916,龙源电力,非传统/可再生能源,Energy,5.985628e+10
 2208,金风科技,环保工程,Energy,6.510814e+10
 1088,中国神华,煤炭,Energy,807854021370.3
-1299,友邦保险,保险,Financial Services,870473251341.45
-3988,中国银行,银行,Financial Services,1437067356690.44
-0005,汇丰控股,银行,Financial Services,2201865750308.4
-0388,香港交易所,其他金融,Financial Services,541873488923.0
-2318,中国平安,保险,Financial Services,1240373476657.5
 2628,中国人寿,保险,Financial Services,932169970900.0
+2318,中国平安,保险,Financial Services,1240373476657.5
+1299,友邦保险,保险,Financial Services,870473251341.45
+0388,香港交易所,其他金融,Financial Services,541873488923.0
+6030,中信证券,投资及资产管理,Financial Services,451.16 B HKD
+3887,HASHKEY HLDGS,其他金融,Financial Services,20.75 B HKD
+0005,汇丰控股,银行,Financial Services,2201865750308.4
+3988,中国银行,银行,Financial Services,1437067356690.44
 2388,中银香港,银行,Financial Services,419527920954.88
 3968,招商银行,银行,Financial Services,1181297567950.84
 0939,建设银行,银行,Financial Services,2006474925790.53
 1398,工商银行,银行,Financial Services,2213282856522.69
-6030,中信证券,投资及资产管理,Financial Services,451.16 B HKD
-3887,HASHKEY HLDGS,其他金融,Financial Services,20.75 B HKD
 2269,药明生物,生物技术,Healthcare,158729434099.2
 6618,京东健康,药品分销,Healthcare,214379577414.8
 3692,翰森制药,药品,Healthcare,245233577835.0
@@ -71,11 +73,11 @@ code,name,plate,sector,market_cap
 1833,平安好医生,医疗及医学美容服务,Healthcare,35.62 B HKD
 3750,宁德时代,能源储存装置,Industrials,1.8 T HKD
 0316,东方海外国际,航运及港口,Industrials,80697616893.4
+0868,信义玻璃,工业零件及器材,Industrials,37958853950.16
+1211,比亚迪股份,汽车,Industrials,903058418813.25
 2618,京东物流,采购及供应链管理,Industrials,75687608747.64
 0267,中信股份,综合企业,Industrials,348210443681.1
-1211,比亚迪股份,汽车,Industrials,903058418813.25
 2057,中通快递-W,航空货运及物流,Industrials,137422284578.7
-0868,信义玻璃,工业零件及器材,Industrials,37958853950.16
 2050,三花智控,工业零件及器材,Industrials,242.21 B HKD
 0753,中国国航,航空服务,Industrials,159.82 B HKD
 0390,中国中铁,重型基建,Industrials,140.29 B HKD
@@ -99,16 +101,18 @@ code,name,plate,sector,market_cap
 0981,中芯国际,半导体,Technology,618034229320.5
 3986,兆易创新,半导体,Technology,2.200384e+11
 1347,华虹半导体,半导体,Technology,198.11 B HKD
+3986,兆易创新,半导体,Technology,3.635216e+11
 0992,联想集团,电脑及周边器材,Technology,107300302962.3
 1024,快手-W,互动媒体及服务,Technology,343684921627.6
 3690,美团-W,线上零售商,Technology,594665004986.5
 9999,网易-S,游戏软件,Technology,658526215568.0
 9660,地平线机器人-W,数码解决方案服务,Technology,137.58 B HKD
-9626,哔哩哔哩-W,互动媒体及服务,Technology,100.69 B HKD
 2513,智谱,数码解决方案服务,Technology,98.61 B HKD
+6082,壁仞科技,数码解决方案服务,Technology,91.24 B HKD
+0100,MINIMAX-W,数码解决方案服务,Technology,2.573378e+11
+9626,哔哩哔哩-W,互动媒体及服务,Technology,100.69 B HKD
 9698,万国数据-SW,互联网服务及基础设施,Technology,63.78 B HKD
 0268,金蝶国际,应用软件,Technology,51.33 B HKD
-6082,壁仞科技,数码解决方案服务,Technology,91.24 B HKD
 2688,新奥能源,燃气供应,Utilities,76965069952.0
 0836,华润电力,常规电力,Utilities,93394121629.6
 1038,长江基建集团,常规电力,Utilities,156719800779.0

@@ -1,41 +1,69 @@
 import datetime as dt
 from dataclasses import dataclass
 import json
-from data.import_data import download_futu_historical_daily_data, download_alpaca_daily_data
 from futu import *
-from auto_trade import get_pred_df
+from auto_trade import auto_trade, get_pred_df
 from util import send_imessage
-import schedule
-import time
+import schedule, time
+import pandas as pd
+
 from model.trend_pred_model import TrendPredModel
+from dashboard import get_batch_predictions, get_last_n_trading_days_predictions
+from data.import_data import Market, download_futu_historical_daily_data, download_alpaca_daily_data
 
-@dataclass
-class Component:  
-    ticker: str
-    entry_date: dt.datetime
-    entry_position_size: int
-    entry_price: float
+   
+def get_capital_flow(code_list:list[str]):
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111) 
+    flow_set = {}
+    for i, code in enumerate(code_list):
+        if (i%30==0) &(i>0):
+            time.sleep(30)
+        ret, data = quote_ctx.get_capital_flow('HK.0'+str(code), period_type = PeriodType.INTRADAY) # DAY, WEEK, MONTH
+        if ret != RET_OK:
+            print('error:', data)
+        flow = data[['capital_flow_item_time','super_in_flow','big_in_flow','mid_in_flow','sml_in_flow']]
+        flow['capital_flow_item_time']=pd.to_datetime(flow.capital_flow_item_time)
+        time_list = []
+        start = dt.datetime.now().replace(hour=9,minute=30,second=0,microsecond=0)
+        for i in range(15):
+            start += dt.timedelta(minutes=30)
+            time_list.append(start)
+        flow = flow[flow.capital_flow_item_time.isin(time_list)]
+        flow.set_index('capital_flow_item_time',inplace=True)
+        flow = round(flow/1e+8,4)
+        flow.rename(columns={"super_in_flow":"super_big_in_flow"},inplace=True)
+        flow_set[code] = flow.to_dict(orient='list')
+    return flow_set
 
-class BacktestPortfolio():
-    def __init__(self, portfolio_name: str):
-        self.portfolio_name = portfolio_name
+def prepare_data_for_prompt(market):
+    sector_df = Market(market).get_code_pool()["code_sector_df"]  
+    trader = auto_trade(market)
+    preds_comb_df = get_batch_predictions(trader)
+    predictions_list, _ = get_last_n_trading_days_predictions(3, preds_comb_df)  
+    merged = predictions_list[-1].reset_index().merge(sector_df, on='code', how='inner')
+    tmp = merged.copy()
+    tmp['bottom_strength'] = tmp['up_strength']*tmp.uptrend.astype(int)
+    pred_signal_list = tmp[['code','name','sector','price_change_today','price_change_yesterday','bottom_strength', 'prediction', 'accel','dist_avgs']]
+    pred_signal_list.set_index('code',inplace=True)
+    pred_signal_list.rename(columns={'bottom_strength':'go_up_confidence_level', 'prediction':'momentum','accel':'momentum_change','dist_avgs':'distance_between_10_60_mvg'},inplace=True)
 
-    def create_backtest_portfolio(self, create_date: dt.datetime, components: list[Component]):
-        create_position = 0
-        for component in components:
-            create_position += component.entry_position_size*component.entry_price
-
-        # Export portfolio to a json file
-        with open(f'{self.portfolio_name}.json', 'w') as json_file:
-            json.dump({'create_date':create_date, 'components': components, 'entry_position': create_position}, json_file, indent=4)
+    merged_2days_ago = predictions_list[-2].reset_index().merge(sector_df, on='code', how='inner')
+    sector_avg = merged.groupby('sector')['prediction'].mean()  
+    sector_avg_2days_ago = merged_2days_ago.groupby('sector')['prediction'].mean()   
+    sector_avg_diff = sector_avg - sector_avg_2days_ago
+    sector_value_df = pd.DataFrame({"today_momentum_value":sector_avg, "momentum_change":sector_avg_diff}).sort_values(by='today_momentum_value',ascending=False)
     
-    def update_backtest_portfolio(self, date: dt.datetime):
-        pass
+    # capital_flow_list = {}
+    # for i, code in enumerate(pred_signal_list.index):
+    #     if (i%30==0)&(i>0) :
+    #         print(f'finish get capital flow for the first {i} stock.')
+    #         time.sleep(30)
+    #     capital_flow_list[code] = get_capital_flow(code)    
 
+    sector_value_df.to_csv('./data/sector_value_df.csv')
+    pred_signal_list.to_csv('./data/pred_signal_list.csv')
+    return sector_value_df, pred_signal_list#, capital_flow_list
 
-
-
-    
 def get_current_futu_portfolio(): # for real trading
     trd_ctx = OpenSecTradeContext(filter_trdmarket=TrdMarket.HK, host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
     ret, positions_df = trd_ctx.position_list_query()
@@ -82,7 +110,6 @@ def get_current_futu_portfolio(): # for real trading
         print('history_order_list_query error: ', history_order)
     trd_ctx.close()
     return portfolio_comp_df
-
 
 def send_portfolio_alert():
     now = dt.datetime.now().time()
@@ -131,8 +158,6 @@ def send_portfolio_alert():
         trd_ctx.close()
     return
 
-
-
 def send_portfolio_pred(): # for real trading
     ## current_drawdown >0.03 or pred <0
     df = get_current_futu_portfolio()
@@ -153,12 +178,11 @@ if __name__ == '__main__':
         schedule.run_pending()
         time.sleep(1)
     
-    # # Schedule send predictions for a portfolio
-    # schedule.every().day.at("15:50").do(send_portfolio_pred)
-    # while True:
-    #     schedule.run_pending()
-    #     time.sleep(1)
-
+    # Schedule send predictions for a portfolio
+    schedule.every().day.at("15:50").do(send_portfolio_pred)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 
 

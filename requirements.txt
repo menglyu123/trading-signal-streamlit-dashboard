@@ -2,10 +2,10 @@ pandas
 numpy
 pandas-ta
 statsmodels
-yfinance
-curl_cffi
 matplotlib
 tensorflow
 scikit-learn
 futu-api
 streamlit
+alpaca-trade-api
+mac_imessage
