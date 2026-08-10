@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import time
 import requests
 from futu import *
+from data.import_data import Market
 
 import alpaca_trade_api as tradeapi
 
@@ -113,7 +114,19 @@ def get_us_market_code_pool():
     return
 
 
-
+def upcoming_earnings_within_1week(market:str) -> pd.DataFrame:
+    codes = Market(market).get_code_pool()["code_list"]
+    if Market(market) == Market.HK:
+        codes = ['HK.0'+code for code in codes]
+    if Market(market) == Market.US:
+        codes = ['US.'+code for code in codes]
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    _, earnings_data = quote_ctx.get_earnings_calendar(
+        market=market, begin_date=dt.date.today(), end_date=dt.date.today()+dt.timedelta(days=6))
+    upcoming_earnings_table = earnings_data[earnings_data.security.isin(codes)][['security', 'name','earnings_date','option_volume','iv']]
+    upcoming_earnings_table.reset_index(inplace=True, drop=True)
+    quote_ctx.close()
+    return upcoming_earnings_table
 
 __BINANCE_WEB = "https://api.binance.com"
 __NUM_TRIALS = 1

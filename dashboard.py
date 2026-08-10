@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import io, time
 import numpy as np
 from data.import_data import Market, download_futu_historical_daily_data, download_alpaca_daily_data
+from util import upcoming_earnings_within_1week
 import futu
 
 WATCHLIST_DIR =  "./data"
@@ -557,7 +558,7 @@ with col1:
             start_date = current_date - dt.timedelta(days=trader.winlen+60+20+500)
             # Download US market data
             if trader.market == Market.US.name:  
-                code = 'SPY'
+                code = 'QQQ'
                 df = download_alpaca_daily_data(code, start_date, current_date)
             # Download HK market data
             if trader.market == Market.HK.name:
@@ -581,7 +582,7 @@ if st.session_state.histogram_image is not None:
 if st.session_state.sector_chart is not None:
     st.image(st.session_state.sector_chart)
 
-# Display sector charts
+# Display index prediction plot (SPY or HSI)
 if st.session_state.index_prediction_plot is not None:
     st.image(st.session_state.index_prediction_plot)
 
@@ -650,6 +651,11 @@ else:
             else:
                 show_batch_plots(passing, sector_df, with_lookback_slider=False)
 
+
+### *********************** Earnings upcoming Section *********************** 
+st.header("Earnings Upcoming")
+upcoming_earnings_df = upcoming_earnings_within_1week(market_choice)
+st.dataframe(upcoming_earnings_df)
 
 
 ### *************************** Extract tickers with BUY/SELL signals *************************
