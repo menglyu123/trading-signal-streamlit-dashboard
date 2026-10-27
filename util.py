@@ -5,16 +5,43 @@ from sklearn.cluster import KMeans
 import pandas as pd
 import matplotlib.pyplot as plt
 from enum import Enum
-
-from datetime import datetime, timedelta
+import datetime as dt
 import time
 import requests
-from futu import *
 from data.import_data import Market
+import futu
 
 import alpaca_trade_api as tradeapi
 
 import mac_imessage
+
+HK_sector_code_mappings={
+    'HK.800700': 'Technology',
+    'HK.800702': 'Consumer Cyclical',
+    'HK.800703': 'Consumer Defensive',
+    'HK.800704': 'Healthcare',
+    'HK.800707': 'Real Estate',
+    'HK.800708': 'Financial Services',
+    'HK.800709': 'Utilities',
+    'HK.800710': 'Communication Services',
+    'HK.800711': 'Industrials',
+    'HK.800712': 'Basic Materials',
+    'HK.800713': 'Energy',
+}
+
+US_sector_code_mappings={
+    'US.XLK': 'Technology',
+    'US.XLY': 'Consumer Cyclical',
+    'US.XLP': 'Consumer Defensive',
+    'US.XLV': 'Healthcare',
+    'US.XLF': 'Financial Services',
+    'US.XLE': 'Energy',   
+    'US.XLB': 'Basic Materials',
+    'US.XLI': 'Industrials',
+    'US.XLU': 'Utilities',
+    'US.XLC': 'Communication Services',
+    'US.XLRE': 'Real Estate',
+}
 
 def send_imessage(recipient, message):
     try:
@@ -32,7 +59,7 @@ class AlpacaConfig(Enum):
     BARS_URL = 'https://data.alpaca.markets/v2/stocks'  # v1/bars
    
 
-def get_price_from_alpaca(symbol, start: datetime, end: datetime, interval) -> pd.DataFrame:
+def get_price_from_alpaca(symbol, start: dt.datetime, end: dt.datetime, interval) -> pd.DataFrame:
     api = tradeapi.REST(AlpacaConfig.API_KEY, AlpacaConfig.API_SECRET, base_url='https://paper-api.alpaca.markets')
     bars = api.get_bars('AAPL', tradeapi.TimeFrame.Day, start).df
     bars.reset_index(inplace=True)
@@ -40,7 +67,7 @@ def get_price_from_alpaca(symbol, start: datetime, end: datetime, interval) -> p
     bars['date']= bars.date.dt.date
     return bars[['date','open','high','low','close','volume']]
 
-def get_price_from_alpaca_requests(symbol, start:datetime, end:datetime, interval) -> list[dict]:
+def get_price_from_alpaca_requests(symbol, start: dt.datetime, end: dt.datetime, interval) -> list[dict]:
     config = AlpacaConfig()
     url = config.BARS_URL + '/bars'
     params = {"end": end} #int(end.timestamp() * 1000)
@@ -54,7 +81,7 @@ def get_price_from_alpaca_requests(symbol, start:datetime, end:datetime, interva
 
 def get_hk_market_code_pool():
     ## ******* get HSI constituent stocks for HK market using futu api *******
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    quote_ctx = futu.OpenQuoteContext(host='127.0.0.1', port=11111)
     hsi_plate_code = 'HK.800000' # Confirm this is the correct HSI code
     ret, data = quote_ctx.get_plate_stock(hsi_plate_code)
     code_list = data.code.apply(lambda x: x[-4:]).to_list()
@@ -65,8 +92,8 @@ def get_hk_market_code_pool():
     # print(set(code_list)-set(code_list100))
     # 2. Define your stock code (e.g., for Tencent on HK market)
     stock_code = ['HK.0'+code for code in code_list] # Example: Tencent Holdings
-    market = Market.HK
-    security_type = SecurityType.STOCK
+    market = futu.Market.HK
+    security_type = futu.SecurityType.STOCK
 
     # 3. Call get_stock_basicinfo
     ret, basic_data = quote_ctx.get_stock_basicinfo(market, security_type, stock_code)
@@ -76,7 +103,7 @@ def get_hk_market_code_pool():
 
     ret, data = quote_ctx.get_market_snapshot(data.code.to_list())
 
-    if ret == RET_OK:
+    if ret == futu.RET_OK:
         market_data = data[['code','name','total_market_val']].sort_values(by='total_market_val',ascending=False)
     else:
         print('error:', data)
@@ -113,27 +140,93 @@ def get_us_market_code_pool():
     df.to_csv('./data/code_pool_us.csv',index=False)
     return
 
+def get_current_portfolio(market:str):
+    #trd_ctx = futu.OpenSecTradeContext(filter_trdmarket=market, host='127.0.0.1', port=11111, security_firm=futu.SecurityFirm.FUTUSECURITIES)
+    with futu.OpenSecTradeContext(
+        filter_trdmarket=market,
+        host='127.0.0.1',
+        port=11111,
+        security_firm=futu.SecurityFirm.FUTUSECURITIES
+    ) as trd_ctx:
+        ret, positions_df = trd_ctx.position_list_query()
+        if ret == futu.RET_OK and positions_df is not None and positions_df.shape[0] > 0:
+            return positions_df['code'].astype(str).tolist()
+        if ret != futu.RET_OK:
+            print('position_list_query error: ', positions_df)
+    return []
 
 def upcoming_earnings_within_1week(market:str) -> pd.DataFrame:
     codes = Market(market).get_code_pool()["code_list"]
-    if Market(market) == Market.HK:
+    if Market(market).name == 'HK':
         codes = ['HK.0'+code for code in codes]
-    if Market(market) == Market.US:
+    if Market(market).name == 'US':
         codes = ['US.'+code for code in codes]
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    quote_ctx = futu.OpenQuoteContext(host='127.0.0.1', port=11111)
     _, earnings_data = quote_ctx.get_earnings_calendar(
-        market=market, begin_date=dt.date.today(), end_date=dt.date.today()+dt.timedelta(days=6))
+            market=market, begin_date=str(dt.date.today()), end_date=str(dt.date.today()+dt.timedelta(days=6))) # time range can not exceed 7 days, so 6.
     upcoming_earnings_table = earnings_data[earnings_data.security.isin(codes)][['security', 'name','earnings_date','option_volume','iv']]
+    
+
+    # codes = get_current_portfolio(market)
+    # quote_ctx = futu.OpenQuoteContext(host='127.0.0.1', port=11111)
+    # _, earnings_data = quote_ctx.get_earnings_calendar(
+    #     market=market, begin_date=str(dt.date.today()), end_date=str(dt.date.today()+dt.timedelta(days=6))) # time range can not exceed 7 days, so 6.
+    # upcoming_earnings_table = earnings_data[earnings_data.security.isin(codes)][['security', 'name','earnings_date','option_volume','iv']]
     upcoming_earnings_table.reset_index(inplace=True, drop=True)
     quote_ctx.close()
     return upcoming_earnings_table
+
+def upcoming_macro_events_within_1week(market:str) -> pd.DataFrame:
+    quote_ctx = futu.OpenQuoteContext(host='127.0.0.1', port=11111)
+    _, data,_,_ = quote_ctx.get_economic_calendar(
+        market_list=[market],
+        begin_date=str(dt.date.today()), 
+        end_date=str(dt.date.today()+dt.timedelta(days=14)), 
+        importance=futu.EconomicImportance.HIGH  # Filtering strictly for high-impact/market-moving data
+    )
+
+    # Define keywords for the absolute top-tier market movers
+    core_macro_keywords = [
+    '季调后CPI月率', 'PCE物价指数月率', 'PPI月率', 
+    '利率', 'FOMC', '美联储',
+    '失业率', 'GDP'
+    ]
+    filter_regex = '|'.join(core_macro_keywords)
+    clean_df = data[data['title'].str.contains(filter_regex, case=False, na=False)]
+    tmp = clean_df[['title','timestamp','country']]
+    tmp['date'] = pd.to_datetime(tmp['timestamp'], unit='s').dt.date
+    tmp = tmp[['date','title']]
+    tmp.rename(columns={'title':'event'}, inplace=True)
+    tmp.reset_index(inplace=True, drop=True)
+    quote_ctx.close()
+    return tmp
+
+
+def get_triple_witching_days(year):
+    witching_dates = []
+    # Triple Witching occurs in March, June, September, and December
+    for month in [3, 6, 9, 12]:
+        fridays = []
+        # Loop through the first 21 days of the month to find the first 3 Fridays
+        for day in range(1, 22):
+            date_obj = dt.date(year, month, day)
+            if date_obj.weekday() == 4:  # 4 represents Friday
+                fridays.append(date_obj)
+        
+        # Extract the 3rd Friday (index 2)
+        witching_dates.append(fridays[2])
+    return witching_dates
+
+
+
+
 
 __BINANCE_WEB = "https://api.binance.com"
 __NUM_TRIALS = 1
 BINANCE_LIMIT = 1000
 
 
-def __get_limit(start_date: datetime, today: datetime) -> int:
+def __get_limit(start_date: dt.datetime, today: dt.datetime) -> int:
     return min(BINANCE_LIMIT, int((today - start_date).total_seconds()) // 3600)
 
 
@@ -142,7 +235,7 @@ def __parse_record(web_data: list, symbol: str) -> dict:
     Convert the return data from Binance to make it a dict data format, and later convert it to DataFrame
     """
     return {
-        "date": datetime.fromtimestamp(web_data[0] / 1000.0),
+        "date": dt.datetime.fromtimestamp(web_data[0] / 1000.0),
         # "symbol": symbol,
         "open": float(web_data[1]),
         "high": float(web_data[2]),
@@ -156,7 +249,7 @@ def __parse_record(web_data: list, symbol: str) -> dict:
     }
 
 
-def get_binance_data_hourly(symbol, since: datetime, until: datetime) -> list[dict]:
+def get_binance_data_hourly(symbol, since: dt.datetime, until: dt.datetime) -> list[dict]:
     fail = 0
     data: list[dict] = []
     while fail < __NUM_TRIALS:
@@ -180,9 +273,9 @@ def get_binance_data_hourly(symbol, since: datetime, until: datetime) -> list[di
                         data.append(md)
             if new_data == 0:
                 raise Exception
-            last_hour = until - timedelta(hours=1)
+            last_hour = until - dt.timedelta(hours=1)
             since = data[-1]["date"]
-            since = since + timedelta(hours=1)
+            since = since + dt.timedelta(hours=1)
             if since > last_hour and since <= until:
                 return data
         except Exception as e:
@@ -192,7 +285,7 @@ def get_binance_data_hourly(symbol, since: datetime, until: datetime) -> list[di
     raise Exception(f"Nothing is fetched for {symbol} on Binance")
 
 
-def get_binance_daily_data(symbol, since: datetime, until: datetime) -> list[dict]:
+def get_binance_daily_data(symbol, since: dt.datetime, until: dt.datetime) -> list[dict]:
     fail = 0
     data: list[dict] = []
     while fail < __NUM_TRIALS:
@@ -216,9 +309,9 @@ def get_binance_daily_data(symbol, since: datetime, until: datetime) -> list[dic
                         data.append(md)
             if new_data == 0:
                 raise Exception
-            last_day = until - timedelta(days=1)
+            last_day = until - dt.timedelta(days=1)
             since = data[-1]["date"]
-            since = since + timedelta(days=1)
+            since = since + dt.timedelta(days=1)
             if since > last_day and since <= until:
                 return data
         except Exception as e:

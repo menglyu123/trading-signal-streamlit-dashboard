@@ -1,9 +1,7 @@
-from futu import *
+import futu
 import alpaca_trade_api as alpaca
 import datetime as dt
 import pandas as pd
-# import yfinance as yf
-# from curl_cffi import requests
 from enum import Enum
 
 class AlpacaConfig(Enum):
@@ -85,30 +83,30 @@ def download_futu_historical_daily_data(ticker, start:dt.date, end:dt.date)-> pd
     ticker: "HK.00700" or "US.AAPL"
     output: a dataframe with columns: date, open, high, low, close, volume
     '''
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111) 
+    quote_ctx = futu.OpenQuoteContext(host='127.0.0.1', port=11111) 
     if ticker == 'HK.800000':
         ret, df, _ = quote_ctx.request_history_kline(ticker, 
                                                     start=str(start), 
                                                     end= str(end), 
                                                     max_count= None, 
-                                                    fields=[KL_FIELD.DATE_TIME,
-                                                            KL_FIELD.OPEN,
-                                                            KL_FIELD.HIGH,
-                                                            KL_FIELD.LOW,
-                                                            KL_FIELD.CLOSE,
-                                                            KL_FIELD.TRADE_VAL])
+                                                    fields=[futu.KL_FIELD.DATE_TIME,
+                                                            futu.KL_FIELD.OPEN,
+                                                            futu.KL_FIELD.HIGH,
+                                                            futu.KL_FIELD.LOW,
+                                                            futu.KL_FIELD.CLOSE,
+                                                            futu.KL_FIELD.TRADE_VAL])
     else:
         ret, df, _ = quote_ctx.request_history_kline(ticker, 
                                                         start=str(start), 
                                                         end= str(end), 
                                                         max_count= None, 
-                                                        fields=[KL_FIELD.DATE_TIME,
-                                                                KL_FIELD.OPEN,
-                                                                KL_FIELD.HIGH,
-                                                                KL_FIELD.LOW,
-                                                                KL_FIELD.CLOSE,
-                                                                KL_FIELD.TRADE_VOL])
-    if ret !=RET_OK:
+                                                        fields=[futu.KL_FIELD.DATE_TIME,
+                                                                futu.KL_FIELD.OPEN,
+                                                                futu.KL_FIELD.HIGH,
+                                                                futu.KL_FIELD.LOW,
+                                                                futu.KL_FIELD.CLOSE,
+                                                                futu.KL_FIELD.TRADE_VOL])
+    if ret !=futu.RET_OK:
         print('error: ', df)
         df = pd.DataFrame()
     else:
