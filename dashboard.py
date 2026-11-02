@@ -676,11 +676,11 @@ if data_df is not None:
 
     if not st.session_state.generate_signals:
         # ===== BUY SIGNALS =====
-        # Category 1: Significant Breakthrough - Top 10 tickers ranked by 'accel' with prediction >= 0.5
+        # Category 1: Significant Breakthrough - Top 10 tickers ranked by 'prediction' with prediction >= 0.3
         if 'accel' in data_df.columns and 'prediction' in data_df.columns:
             qualified_high_pred = data_df[(data_df['prediction'] > 0.3) & (data_df['accel'] > 0)]
             if not qualified_high_pred.empty:
-                st.session_state.signals['breakthrough_signals'] = qualified_high_pred.nlargest(10, 'accel').index.tolist()
+                st.session_state.signals['breakthrough_signals'] = qualified_high_pred.nlargest(10, 'prediction').index.tolist()
 
         # Category 2: Pullback End - Tickers matching the 20-day trend pattern and accel > 0
         if 'accel' in data_df.columns and st.session_state.predictions_pool is not None:
@@ -805,7 +805,7 @@ if not upcoming_macro_events_df.empty:
 
 
 ### *********************** Trend Screening (EMA-based, on full code pool) *********************** 
-st.header("Trend Investigation")
+st.header("Trend Research")
 
 # Only show trend analysis if predictions are available
 if 'predictions_df' not in st.session_state or st.session_state.predictions_df is None:
@@ -844,7 +844,7 @@ else:
 
 
 ### *************************** Batch Screening ***************************
-st.header("Batch Investigation")
+st.header("Batch Research")
 
 # Lookback days setting
 today = dt.date.today()
