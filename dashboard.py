@@ -14,6 +14,288 @@ from util import upcoming_earnings_within_1week, upcoming_macro_events_within_1w
 import futu
 
 WATCHLIST_DIR =  "./data"
+PRED_RS_THD = 1
+
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+
+def plot_sector_ticker_stats(
+    list_sector_stats: list[pd.DataFrame],
+    figsize: tuple = (6, 8),
+    base_font: int = 16,
+):
+  """Plots a compact horizontal grouped stacked bar chart in Streamlit."""
+  if not list_sector_stats:
+    st.warning('No sector data available to plot.')
+    return
+
+  # 1. Combine and sort data chronologically
+  df_all = pd.concat(list_sector_stats, ignore_index=True)
+  df_all = df_all.sort_values(['sector', 'date'])
+  sectors = df_all['sector'].unique()
+  df_all['day_idx'] = df_all.groupby('sector').cumcount()
+
+  # 2. Set up compact figure and horizontal bar geometry
+  fig, ax = plt.subplots(figsize=figsize, dpi=150)
+  y = np.arange(len(sectors))
+  height = 0.3
+
+  colors = {
+      'num_remaining_tickers': 'tab:blue',
+      'num_add_tickers': 'tab:orange',
+      'num_del_tickers': 'tab:gray',
+  }
+
+  # 3. Plot the 3 days chronologically from top (Day 0) to bottom (Day 2)
+  for i in range(3):
+    day_data = df_all[df_all['day_idx'] == i].set_index('sector').reindex(sectors)
+
+    # Change (1 - i) to (i - 1) so Day 0 is on top and Day 2 is on bottom
+    offset = (i - 1) * height
+
+    rem = day_data['num_remaining_tickers'].fillna(0)
+    add = day_data['num_add_tickers'].fillna(0)
+    dele = day_data['num_del_tickers'].fillna(0)
+
+    lbl_rem = 'Remaining' if i == 0 else ''
+    lbl_add = 'Added' if i == 0 else ''
+    lbl_del = 'Deleted' if i == 0 else ''
+
+    ax.barh(
+        y + offset,
+        rem,
+        height,
+        label=lbl_rem,
+        color=colors['num_remaining_tickers'],
+        edgecolor='white',
+        linewidth=0.3,
+    )
+    ax.barh(
+        y + offset,
+        add,
+        height,
+        left=rem,
+        label=lbl_add,
+        color=colors['num_add_tickers'],
+        edgecolor='white',
+        linewidth=0.3,
+    )
+    ax.barh(
+        y + offset,
+        dele,
+        height,
+        left=rem + add,
+        label=lbl_del,
+        color=colors['num_del_tickers'],
+        edgecolor='white',
+        linewidth=0.3,
+    )
+
+  # 4. Format swapped axes
+  ax.set_yticks(y)
+  ax.set_yticklabels(sectors, fontsize=base_font)
+  ax.invert_yaxis()  # Keeps first sector and earliest day at the top
+  ax.tick_params(axis='both', which='major', labelsize=base_font, pad=2)
+
+  plt.tight_layout(pad=0.5)
+  st.pyplot(fig, use_container_width=False)
+  plt.close(fig)
+
+
+
+def plot_track_tickers(
+    df: pd.DataFrame, title: str = "Ticker Composition Over Time"
+):
+  """Plots a stacked bar chart of remaining, added, and deleted tickers over time.
+
+  Args:
+      df: DataFrame containing 'date', 'num_remaining_tickers',
+        'num_add_tickers', and 'num_del_tickers'.
+      title: Optional chart title / Y-axis label.
+  """
+  if df.empty:
+    st.warning("No data available to plot.")
+    return
+
+  # 1. Prepare data and ensure dates are formatted cleanly as strings for X-axis ticks
+  plot_df = df.copy()
+  if pd.api.types.is_datetime64_any_dtype(plot_df["date"]):
+    dates = plot_df["date"].dt.strftime("%Y-%m-%d").tolist()
+  else:
+    dates = plot_df["date"].astype(str).tolist()
+
+  orig = plot_df["num_remaining_tickers"].to_numpy()
+  added = plot_df["num_add_tickers"].to_numpy()
+  deleted = plot_df["num_del_tickers"].to_numpy()
+
+  # 2. Configure fonts & create figure
+  plt.rcParams["font.sans-serif"] = [
+      "SimHei",
+      "Arial Unicode MS",
+      "PingFang SC",
+      "DejaVu Sans",
+  ]
+  plt.rcParams["axes.unicode_minus"] = False
+
+  # Dynamically adjust figure width if there are many dates
+  fig_width = max(11, len(dates) * 0.45)
+  fig, ax = plt.subplots(figsize=(fig_width, 8))
+
+  # Colors matched to your reference script
+  colors = {
+      "Remaining": "#1f77b4",  # Blue (原有数量)
+      "Added": "#ff7f0e",  # Orange (新增数量)
+      "Deleted": "#9E9E9E",  # Grey (删除数量)
+  }
+
+  # Adjust bar width dynamically based on number of dates so bars don't look too thin or overlap
+  bar_width = 0.8 if len(dates) > 10 else 0.5
+  x = np.arange(len(dates))
+
+  # 3. Plot three-layer stacked bar chart
+  ax.bar(
+      x, orig, width=bar_width, color=colors["Remaining"], label="Remaining"
+  )
+  ax.bar(
+      x,
+      added,
+      width=bar_width,
+      bottom=orig,
+      color=colors["Added"],
+      label="Added",
+  )
+  ax.bar(
+      x,
+      deleted,
+      width=bar_width,
+      bottom=orig + added,
+      color=colors["Deleted"],
+      label="Deleted",
+  )
+
+  # 4. Styling & layout (matching your reference)
+  ax.set_ylabel(title, fontsize=16, fontweight="bold")
+  for label in ax.get_yticklabels():
+    label.set_fontsize(16)
+  ax.spines["top"].set_visible(False)
+  ax.spines["right"].set_visible(False)
+  ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+  # Top-centered legend
+  ax.legend(
+      loc="upper center",
+      bbox_to_anchor=(0.5, 1.15),
+      ncol=3,
+      frameon=False,
+      fontsize=16,
+  )
+
+  # X-axis formatting
+  ax.set_xticks(x)
+  ax.set_xticklabels(dates, rotation=30, ha="right", fontsize=16)
+  ax.set_xlabel("Date", fontsize=16, fontweight="bold")
+
+  plt.tight_layout()
+
+  # 5. Render in Streamlit and close figure to prevent memory leaks
+  st.pyplot(fig)
+  plt.close(fig)
+
+
+def track_tickers(preds_df_comb: dict, start_date: str) -> pd.DataFrame:
+  """Tracks added, deleted, and active tickers from start_date to today.
+
+  Args:
+      preds_df_comb: Dictionary mapping ticker (str) to its prediction dataframe.
+      start_date: Starting date string (e.g., '2026-01-01').
+
+  Returns:
+      A DataFrame tracking ticker sets and counts over time.
+  """
+  # 1. Combine all ticker DataFrames into one for efficient querying
+  df_list = []
+  for ticker, df in preds_df_comb.items():
+    temp_df = df[['date', 'prediction', 'turning_point', 'pred_rs']].copy()
+    temp_df['ticker'] = ticker
+    df_list.append(temp_df)
+
+  if not df_list:
+    return pd.DataFrame()
+
+  all_data = pd.concat(df_list, ignore_index=True)
+  all_data['date'] = pd.to_datetime(all_data['date'])
+
+  # 2. Filter data from start_date up to today
+  start_dt = pd.to_datetime(start_date)
+  today_dt = pd.to_datetime(dt.datetime.today().strftime('%Y-%m-%d'))
+
+  all_data = all_data[
+      (all_data['date'] >= start_dt) & (all_data['date'] <= today_dt)
+  ]
+
+  # Get sorted unique dates present in the filtered dataset
+  dates = sorted(all_data['date'].unique())
+
+  if not dates:
+    return pd.DataFrame()
+
+  # Pre-group data by date for fast lookup inside the loop
+  grouped_by_date = dict(tuple(all_data.groupby('date')))
+
+  records = []
+  prev_current_tickers = set()
+
+  # 3. Iterate chronologically through each date
+  for i, current_date in enumerate(dates):
+    day_df = grouped_by_date[current_date]
+
+    # Find tickers where turning_point is True on current_date
+    add_tickers = set(day_df[(day_df['turning_point'] == True)&((day_df['pred_rs']>PRED_RS_THD) | (day_df['prediction']>0.5))]['ticker'])
+
+    if i == 0:
+      # Starting date initialization
+      del_tickers = set()
+      current_tickers = add_tickers.copy()
+    else:
+      # Find tickers from previous day's current_tickers that now have a negative prediction
+      neg_pred_tickers = set(day_df[day_df['prediction'] < 0]['ticker'])
+      del_tickers = prev_current_tickers.intersection(neg_pred_tickers)
+
+      # Update current_tickers: (Previous - Deleted) + Added
+      current_tickers = (prev_current_tickers - del_tickers).union(add_tickers)
+
+    # Store row results
+    records.append({
+        'date': current_date,
+        'add_tickers': add_tickers,
+        'num_add_tickers': len(add_tickers),
+        'current_tickers': current_tickers,
+        'num_current_tickers': len(current_tickers),
+        'del_tickers': del_tickers,
+        'num_del_tickers': len(del_tickers),
+    })
+
+    # Update tracker for the next iteration
+    prev_current_tickers = current_tickers
+
+  # 4. Construct the final DataFrame with exact column order
+  result_df = pd.DataFrame(records)
+  column_order = [
+      'date',
+      'add_tickers',
+      'num_add_tickers',
+      'current_tickers',
+      'num_current_tickers',
+      'del_tickers',
+      'num_del_tickers',
+  ]
+
+  return result_df[column_order]
 
 
 def _trend_flags(result_df: pd.DataFrame, period: int):
@@ -80,6 +362,18 @@ def add_to_watchlist(market: str, tickers):
         fh.write("\n".join(current_tickers))
 
     return path
+
+def remove_from_watchlist(market:str, tickers):
+    """
+    Remove the tickers from the watchlist saved in the disk
+    """
+    existing_tickers, path = load_watchlist(market)
+    current_tickers = [ticker for ticker in existing_tickers if ticker not in tickers]
+    # Write back the updated list
+    with open(path, "w") as fh:
+        fh.write("\n".join(current_tickers))
+    return path
+
 
 def write_watchlist(market: str, tickers):
     """
@@ -604,7 +898,7 @@ with col1:
             start_date = current_date - dt.timedelta(days=trader.winlen+60+20+500)
             # Download US market data
             if trader.market == Market.US.name:  
-                code = 'QQQ'
+                code = 'SPY'
                 df = download_futu_historical_daily_data('US.' + code, start_date, current_date)
             # Download HK market data
             if trader.market == Market.HK.name:
@@ -632,6 +926,40 @@ if st.session_state.sector_chart is not None:
 # Display index prediction plot (SPY or HSI)
 if st.session_state.index_prediction_plot is not None:
     st.image(st.session_state.index_prediction_plot)
+
+# Display bar plots to track ticker additions and deletions over time
+if st.session_state.predictions_df is not None:
+    output_df = track_tickers(st.session_state.predictions_pool, dt.date.today() - dt.timedelta(days=60))
+    output_df['num_remaining_tickers'] = output_df['num_current_tickers'] - output_df['num_add_tickers']
+  
+    # Summary statistics for all the sectors in last 3 trading days
+    list_sector_stats = []
+    sector_df = Market(market_choice).get_code_pool()["code_sector_df"] 
+    # Group by sector
+    for sector, group in sector_df.groupby('sector'):
+        predictions_pool_by_sector = {
+            code: st.session_state.predictions_pool[code] 
+            for code in group['code'] if code in st.session_state.predictions_pool
+        }
+        output_df = track_tickers(predictions_pool_by_sector, dt.date.today() - dt.timedelta(days=60))
+        output_df['num_remaining_tickers'] = output_df['num_current_tickers'] - output_df['num_add_tickers']
+        output_df['sector'] = sector
+        list_sector_stats.append(output_df.iloc[-3:])
+   
+
+    col_left, col_right = st.columns([3, 1])
+
+    with col_left:
+        st.subheader('Market Ticker Change')
+        plot_track_tickers(output_df[['date', 'num_remaining_tickers', 'num_add_tickers', 'num_del_tickers']])
+  
+
+    with col_right:
+        st.subheader('Sector Ticker Changes Over Last 3 Days')
+        plot_sector_ticker_stats(list_sector_stats)
+
+    
+
 
 # Display top 20 breakthrough tickers
 if st.session_state.predictions_df is not None:
@@ -676,9 +1004,11 @@ if data_df is not None:
 
     if not st.session_state.generate_signals:
         # ===== BUY SIGNALS =====
-        # Category 1: Significant Breakthrough - Top 10 tickers ranked by 'prediction' with prediction >= 0.3
+        # Category 1: Significant Breakthrough - Top 10 tickers
         if 'accel' in data_df.columns and 'prediction' in data_df.columns:
-            qualified_high_pred = data_df[(data_df['prediction'] > 0.3) & (data_df['accel'] > 0)]
+            qualified_high_pred = data_df[(data_df['turning_point']==True)&((data_df['pred_rs']>PRED_RS_THD) | (data_df['prediction']>0.5))]
+           # qualified_high_pred = data_df[(data_df['prediction']>0)&(data_df['accel']>0)]
+            
             if not qualified_high_pred.empty:
                 st.session_state.signals['breakthrough_signals'] = qualified_high_pred.nlargest(10, 'prediction').index.tolist()
 
@@ -696,10 +1026,17 @@ if data_df is not None:
         # Category 3: Strong Up Potential - Tickers with up_strength ==1
         if 'up_strength' in data_df.columns:
             st.session_state.signals['strong_potential_signals'] = data_df[data_df['up_strength'] == 1].index.tolist()
-         
-        # Remove duplicates while preserving order
-        all_buy_signals= st.session_state.signals['breakthrough_signals'] + st.session_state.signals['pullback_end_signals'] + st.session_state.signals['strong_potential_signals']
-        all_buy_signals = list(dict.fromkeys(all_buy_signals))
+
+
+        # Remove tickers whose prediction <0 from watchlist
+        current_watchlist, _ = load_watchlist(market_choice)
+        to_remove_tickers = [ticker for ticker in current_watchlist if st.session_state.predictions_df.loc[ticker]['prediction']<0]
+        remove_from_watchlist(market_choice, to_remove_tickers)
+
+        # Add to buy tickers to watchlist
+        # all_buy_signals= st.session_state.signals['breakthrough_signals'] + st.session_state.signals['pullback_end_signals'] + st.session_state.signals['strong_potential_signals']
+        # all_buy_signals = list(dict.fromkeys(all_buy_signals))
+        all_buy_signals = qualified_high_pred.index.tolist()
         add_to_watchlist(market_choice, all_buy_signals)  # Save the combined buy signals to the watchlist
         
         # ===== SELL SIGNALS =====
@@ -730,8 +1067,12 @@ if data_df is not None:
             st.markdown("**🚀 Significant Breakthrough**")
             if st.session_state.signals['breakthrough_signals']:
                 st.write(f"**Top {len(st.session_state.signals['breakthrough_signals'])} signal(s)**")
-                display_list = sector_df[sector_df['code'].isin(st.session_state.signals['breakthrough_signals'])]['name'].tolist()
-                st.write(", ".join(display_list))
+                tmp_df = sector_df[sector_df['code'].isin(st.session_state.signals['breakthrough_signals'])][['name','code','sector']]
+                tmp_df['display_name'] = tmp_df['name'].astype(str) + '-' + tmp_df['code'].astype(str)
+                result_df = tmp_df.groupby('sector')['display_name'].agg(list)
+                st.dataframe(result_df)
+                # display_list = tmp_df['display_name'].tolist()
+                # st.write(", ".join(display_list))
             else:
                 st.write("No signals")
 
@@ -739,8 +1080,12 @@ if data_df is not None:
             st.markdown("**� Trend Pullback End**")
             if st.session_state.signals['pullback_end_signals']:
                 st.write(f"**{len(st.session_state.signals['pullback_end_signals'])} signal(s)**")
-                display_list = sector_df[sector_df['code'].isin(st.session_state.signals['pullback_end_signals'])]['name'].tolist()
-                st.write(", ".join(display_list))
+                tmp_df = sector_df[sector_df['code'].isin(st.session_state.signals['pullback_end_signals'])][['name','code','sector']]
+                tmp_df['display_name'] = tmp_df['name'].astype(str) + '-' + tmp_df['code'].astype(str)
+                result_df = tmp_df.groupby('sector')['display_name'].agg(list)
+                st.dataframe(result_df)
+                # display_list = tmp_df['display_name'].tolist()
+                # st.write(", ".join(display_list))
             else:
                 st.write("No signals")
 
@@ -748,8 +1093,12 @@ if data_df is not None:
             st.markdown("**📈 Strong Up Potential**")
             if st.session_state.signals['strong_potential_signals']:
                 st.write(f"**{len(st.session_state.signals['strong_potential_signals'])} signal(s)**")
-                display_list = sector_df[sector_df['code'].isin(st.session_state.signals['strong_potential_signals'])]['name'].tolist()
-                st.write(", ".join(display_list))
+                tmp_df = sector_df[sector_df['code'].isin(st.session_state.signals['strong_potential_signals'])][['name','code','sector']]
+                tmp_df['display_name'] = tmp_df['name'].astype(str) + '-' + tmp_df['code'].astype(str)
+                result_df = tmp_df.groupby('sector')['display_name'].agg(list)
+                st.dataframe(result_df)
+                # display_list = tmp_df['display_name'].tolist()
+                # st.write(", ".join(display_list))
             else:
                 st.write("No signals")
 
@@ -869,9 +1218,13 @@ else:
     custom_colors = [
         '#1f77b4', '#17becf', '#2ca02c', '#d62728', '#9467bd', 
         '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#ff7f0e', 
-        '#8dd3c7' ,'#000000'
+        '#8dd3c7', "#f032e6", "#bfef45", "#000075", "#ffe119"
     ]
+ 
     for i, code in enumerate(st.session_state.portfolio_tickers):
+        if code not in trader.code_list:
+            st.warning(f"{code} is not in the code pool for {market_choice}. Skipping.")
+            continue
         tmp_df = st.session_state.predictions_pool[code]
         df = tmp_df[tmp_df.date>=start_date][['date','prediction','accel','close']] 
         df['close'] = df.close/df.iloc[0]['close']
@@ -899,23 +1252,23 @@ else:
     if trader.market == Market.HK.name:
         label = 'HSI'
     if trader.market == Market.US.name:
-        label = 'QQQ'
+        label = 'SPY'
     (line,) = ax.plot(
-            idf.date, idf.close, color=custom_colors[-1], label=label, linestyle='--'
+            idf.date, idf.close, color='#000000', label=label
         )
     pred_mask = [True if p>0 else False for p in idf.prediction]
     accel_mask = [True if a>0 else False for a in idf.accel]
     ax.scatter(
         idf[pred_mask]['date'],
         idf[pred_mask]['close'],
-        color=custom_colors[-1],
+        color='#000000',
         marker="o",
         s=30*idf[pred_mask]['prediction'],
     )
     ax.scatter(
         idf[accel_mask]['date'],
         idf[accel_mask]['close'],
-        color=custom_colors[-1],
+        color='#000000',
         marker="+",
         s=30*idf[accel_mask]['accel'],
     )
@@ -984,26 +1337,10 @@ else:
                 st.session_state.view_watchlist = True
             if st.session_state.view_watchlist:
                 grouped = watch_sector_df.groupby('sector').apply(lambda x: x['code'].tolist())
-                tmp_df_lists = []
+                # tmp_df_lists = []
                 for sec, codes in grouped.items():
                     st.subheader(f"{sec} ({len(codes)})")
-                    show_batch_plots(codes, sector_df, with_lookback_slider=False, action_mode='watchlist', market=market_choice)
-                    # Save the predictions for this sector to a CSV for download
-                    sector_pred_df= st.session_state.predictions_df.loc[codes][['date','price_change_today','prediction','accel']]
-                    sector_pred_df['sector'] = sec      
-                    tmp_df_lists.append(sector_pred_df)
-                tmp_df = pd.concat(tmp_df_lists)
-                tmp_df.reset_index(inplace=True)    
-                sector_df_cpy = sector_df.copy()
-                sector_df_cpy.set_index('code', inplace=True)
-                tmp_df = tmp_df.join(sector_df_cpy[['name']],on='code', how='inner')
-                if os.path.exists(f"./results/watchlist_predictions_{market_choice}.csv"):
-                    org_df = pd.read_csv(f"./results/watchlist_predictions_{market_choice}.csv")
-                    if org_df.iloc[-1]['date'] != tmp_df.iloc[-1]['date']:
-                        tmp_df = pd.concat([org_df, tmp_df])
-                    else:
-                        tmp_df = org_df
-                tmp_df.to_csv(f"./results/watchlist_predictions_{market_choice}.csv", index=False)      
+                    show_batch_plots(codes, sector_df, with_lookback_slider=False, action_mode='watchlist', market=market_choice)   
         else:
             st.info("Add stocks to the watch list to see their backtests.")
     else:
@@ -1014,17 +1351,20 @@ else:
     if view_level_choice == "Customize":
         # Create sorted options for the dropdown
         predictions_sorted = st.session_state.predictions_df.sort_values('prediction', ascending=False)
-        stock_options = []
+        stock_options, default_options = [], []
         for code in predictions_sorted.index:
             pred_value = predictions_sorted.loc[code, 'prediction']
             # Format the display string with stock code and prediction value only
             display_string = f"{code} (Pred: {pred_value:.3f})"
             stock_options.append(display_string)
+            if code in st.session_state.signals['breakthrough_signals']:
+                default_options.append(display_string)
         
         # Allow multiple stock selection with formatted options
         selected_stocks = st.multiselect(
             "Select stocks to view (sorted by prediction value)",
             options=stock_options,
+            default=default_options,
             help="Stocks are sorted by prediction value (highest to lowest)"
         )
         
@@ -1033,19 +1373,28 @@ else:
             selected_tickers = [stock.split()[0] for stock in selected_stocks]
             show_batch_plots(selected_tickers, sector_df, action_mode='customize', market=market_choice)
 
+
     
     # ------------- Display aggregated sector information -------------
+    idf = st.session_state.index_prediction_df[st.session_state.index_prediction_df.date>=start_date].set_index('date')[['prediction','accel','close']]
+    if trader.market == Market.HK.name:
+        idx_name = 'HSI'
+    if trader.market == Market.US.name:
+        idx_name = 'SPY'
+    idf.rename(columns={'prediction':f'pred_{idx_name}','accel':f'accel_{idx_name}','close':f'close_{idx_name}'}, inplace=True)
+    
     if not custom_sector_df.empty:
-        agg_df_list = []
+        agg_df_list = [idf]
         sector_codes = custom_sector_df.groupby('sector').apply(lambda x: x['code'].tolist())
         for sec, codes in sector_codes.items():
-            sec_pred_df = pd.concat([st.session_state.predictions_pool[code].set_index('date')[['prediction','accel','close']] for code in codes if code in st.session_state.predictions_pool], axis=1, join='inner')
+            sec_pred_df = pd.concat([st.session_state.predictions_pool[code].set_index('date')[['prediction','accel','close']] for code in codes if code in st.session_state.predictions_pool and len(st.session_state.predictions_pool[code])>30], axis=1, join='inner')
             sec_pred_df = sec_pred_df[sec_pred_df.index>=start_date]
             sec_pred_df['close'] = sec_pred_df.close/sec_pred_df.iloc[0]['close']
             sec_agg_df = sec_pred_df.T.groupby(level=0).mean().T
             sec_agg_df.rename(columns= {'prediction':f'pred_{sec}', 'accel':f'accel_{sec}', 'close':f'close_{sec}'}, inplace=True)
             agg_df_list.append(sec_agg_df)
         all_agg_df = pd.concat(agg_df_list, axis=1, join='inner')
+
         # Normalize the avg close column for each sector
         for col in all_agg_df.columns:
             if col.startswith("close_"):
@@ -1055,9 +1404,8 @@ else:
         fig, ax = plt.subplots(figsize=(10, 4))
 
         custom_colors = [
-            '#1f77b4', '#17becf', '#2ca02c', '#d62728', '#9467bd', 
-            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#ff7f0e', 
-            '#8dd3c7' ,'#000000'
+            '#000000', '#1f77b4', '#17becf', '#2ca02c', '#d62728', '#9467bd', 
+            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#ff7f0e', '#8dd3c7'
         ]
         price_cols = [col for col in all_agg_df.columns if col.startswith("close_")]
         for i, p_col in enumerate(price_cols):
@@ -1088,32 +1436,6 @@ else:
                     marker="+",
                     s=30*all_agg_df[accel_mask][accel_col],
                 )
-                
-        idf = st.session_state.index_prediction_df[st.session_state.index_prediction_df.date>=start_date][['date','prediction','accel','close']]
-        idf['close'] = idf.close/idf.iloc[0]['close']
-        if trader.market == Market.HK.name:
-            label = 'HSI'
-        if trader.market == Market.US.name:
-            label = 'QQQ'
-        (line,) = ax.plot(
-                idf.date, idf.close, color=custom_colors[-1], label=label, linestyle='--'
-            )
-        pred_mask = [True if p>0 else False for p in idf.prediction]
-        ax.scatter(
-            idf[pred_mask]['date'],
-            idf[pred_mask]['close'],
-            color=custom_colors[-1],
-            marker="o",
-            s=30*idf[pred_mask]['prediction'],
-        )
-        accel_mask = [True if a>0 else False for a in idf.accel]
-        ax.scatter(
-            idf[accel_mask]['date'],
-            idf[accel_mask]['close'],
-            color=custom_colors[-1],
-            marker="+",
-            s=30*idf[accel_mask]['accel'],
-        )
         
         ax.set_title("Sector Avg Prices & Predictions")
         ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left")  # Legend outside chart

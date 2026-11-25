@@ -55,6 +55,16 @@ def get_pred_df(df, winlen):
         # Add accel strength
         bdf['accel'] = np.exp(bdf.prediction)
         bdf['accel'] = bdf.accel.pct_change()
+
+        # Add turning point
+        bdf['turning_point'] = (bdf.prediction>0) & (bdf.prediction.shift(1)<0)
+
+        # Add pred_rs
+        bdf['pred_rs_20'] = bdf.prediction.clip(lower=0).rolling(window=20).mean()/ ((-bdf.prediction).clip(lower=0).rolling(window=20).mean()+1e-6)
+        bdf['pred_rs_40'] = bdf.prediction.clip(lower=0).rolling(window=40).mean()/ ((-bdf.prediction).clip(lower=0).rolling(window=40).mean()+1e-6)
+        bdf['pred_rs_60'] = bdf.prediction.clip(lower=0).rolling(window=60).mean()/ ((-bdf.prediction).clip(lower=0).rolling(window=60).mean()+1e-6)
+        bdf['pred_rs'] = bdf[['pred_rs_20','pred_rs_40','pred_rs_60']].max(axis=1)
+
         bdf.dropna(inplace=True)
         if len(bdf) < 15:
             print(f"{len(bdf)} samples is not enough. At least 15 samples required for bottom strength calculation")
@@ -63,7 +73,7 @@ def get_pred_df(df, winlen):
         bdf['last15_freq'] = bdf['accel'].rolling(15).apply(lambda x: sum(x>0)/len(x))
         bdf['up_strength'] = bdf[['last5_freq','last10_freq','last15_freq']].max(axis=1).round(2)
         bdf['down_strength'] = (1-bdf[['last5_freq','last10_freq','last15_freq']]).max(axis=1).round(2)
-        bdf.drop(columns=['last5_freq','last10_freq','last15_freq'], inplace=True)
+        bdf.drop(columns=['pred_rs_20','pred_rs_40','pred_rs_60','last5_freq','last10_freq','last15_freq'], inplace=True)
     except:
         bdf = pd.DataFrame()
     return bdf
